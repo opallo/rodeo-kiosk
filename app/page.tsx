@@ -1,6 +1,6 @@
 "use client"
 
-import { Authenticated, Unauthenticated, useQuery } from "convex/react"; // added useQuery for convex debug test
+import { Authenticated, Unauthenticated, useConvexAuth, useQuery } from "convex/react"; // added useConvexAuth to guard convex debug query from running while signed out
 import { SignInButton, UserButton, useUser } from "@clerk/nextjs"; // added useUser for clerk debug test
 import type { ReactNode } from "react"; // added ReactNode type to support convex debug helpers
 import { api } from "@/convex/_generated/api"; // added convex api for debug query
@@ -149,7 +149,8 @@ function ConvexDebugContentAuthed({
 }: {
   children: ConvexDebugContentProps["children"];
 }) {
-  const messages = useQuery(api.messages.getForCurrentUser, {}) as Array<Record<string, unknown>> | undefined; // moved convex query into authenticated-only component
+  const { isAuthenticated } = useConvexAuth(); // added auth state lookup so we can pause the convex query until a session exists
+  const messages = useQuery(api.messages.getForCurrentUser, isAuthenticated ? {} : undefined) as Array<Record<string, unknown>> | undefined; // updated to skip the convex query entirely until authenticated
 
   const handleConvexTest = () => { // moved convex debug logger next to authed query data
     console.debug("Convex debug", {
