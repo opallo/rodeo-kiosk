@@ -34,95 +34,107 @@ export default function Home() {
   };
 
   return (
-    <main>
+    <main className="min-h-screen bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950 text-neutral-100">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-16">
+        <header className="flex flex-col items-center gap-3 text-center">
+          <p className="rounded-full border border-fuchsia-600/40 bg-fuchsia-900/20 px-4 py-1 text-xs uppercase tracking-[0.3em] text-fuchsia-200/80">
+            Rodeo Platform
+          </p>
+          <h1 className="text-4xl font-semibold tracking-tight text-white md:text-5xl">rodeo-kiosk</h1>
+          <p className="max-w-2xl text-sm text-neutral-300 md:text-base">
+            Streamlined access to your Clerk and Convex diagnostics in one tidy control surface.
+          </p>
+        </header>
 
-      {/* title */}
-      <div className="flex justify-center mt-25 font-black text-xl">
-        rodeo-kiosk
-      </div>
+        <section className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+          <div className="flex flex-col gap-6 rounded-2xl border border-fuchsia-500/20 bg-neutral-900/60 p-8 shadow-xl shadow-fuchsia-900/20 backdrop-blur">
+            <h2 className="text-lg font-medium text-fuchsia-200">Authentication</h2>
+            <p className="text-sm text-neutral-300">
+              Sign in with Clerk to unlock interactive debugging actions.
+            </p>
+            <Unauthenticated>
+              <SignInButton mode="modal">
+                <button className="group inline-flex items-center justify-center gap-2 rounded-full border border-fuchsia-500/60 bg-fuchsia-800/80 px-5 py-2.5 text-sm font-semibold text-white transition hover:border-fuchsia-300/80 hover:bg-fuchsia-700">
+                  <span>Sign in with Clerk</span>
+                </button>
+              </SignInButton>
+            </Unauthenticated>
+            <Authenticated>
+              <div className="flex flex-col items-center gap-4 rounded-xl border border-fuchsia-500/20 bg-fuchsia-900/20 p-6">
+                <UserButton userProfileMode="modal" />
+                <div className="flex flex-wrap justify-center gap-3">
+                  <button
+                    className="rounded-full border border-fuchsia-500/50 bg-fuchsia-700 px-5 py-2 text-sm font-medium text-white transition hover:border-fuchsia-300 hover:bg-fuchsia-600"
+                    onClick={handleClerkTest}
+                  >
+                    Test Clerk
+                  </button>
+                  <button
+                    className="rounded-full border border-emerald-500/50 bg-emerald-700 px-5 py-2 text-sm font-medium text-white transition hover:border-emerald-300 hover:bg-emerald-600"
+                    onClick={handleAddDemoMessage}
+                  >
+                    Add demo message
+                  </button>
+                </div>
+              </div>
+            </Authenticated>
+          </div>
 
-      {/* input section */}
-      <section className="flex justify-center max-w-full max-h-75 mt-12 mx-[10%] bg-neutral-800 drop-shadow-md rounded-md p-4">
-
-        {/* container */}
-        <div className="flex justify-center align-top min-w-1/2 drop-shadow-md bg-fuchsia-950/20 rounded-md p-12 overflow-y-auto">
-
-          {/* unauthenticated */}
-          <Unauthenticated>
-
-            {/* sign-in button */}
-            <SignInButton mode="modal">
-              <button className="text-white bg-fuchsia-800 px-6 py-3 rounded-md drop-shadow-md cursor-pointer hover:bg-fuchsia-950">
-                Sign in with Clerk
-              </button>
-            </SignInButton>
-          </Unauthenticated>
-
-          {/* authenticated */}
-          <Authenticated>
-            <div className="flex flex-col gap-2 justify-center items-center">
-
-              {/* user button */}
-              <UserButton userProfileMode="modal">
-              </UserButton>
-
-              {/* test clerk button */}
-              <button color="black" className="text-white bg-fuchsia-800 px-6 py-3 rounded-md drop-shadow-md cursor-pointer hover:bg-fuchsia-950" onClick={handleClerkTest}>
-                test clerk
-              </button>
-              <button
-                className="text-white bg-green-800 px-6 py-3 rounded-md drop-shadow-md cursor-pointer hover:bg-green-950"
-                onClick={handleAddDemoMessage}
-              >
-                add demo message
-              </button>
+          <div className="flex flex-col gap-6 rounded-2xl border border-amber-500/20 bg-neutral-900/60 p-8 shadow-xl shadow-amber-900/20 backdrop-blur">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-medium text-amber-200">Convex actions</h2>
+              <span className="text-xs uppercase tracking-wide text-amber-200/70">Diagnostics</span>
             </div>
-          </Authenticated>
-        </div>
+            <p className="text-sm text-neutral-300">
+              Trigger test writes to quickly validate Convex connectivity.
+            </p>
+            <button
+              className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-amber-500/50 bg-amber-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:border-amber-300 hover:bg-amber-600"
+              onClick={handleConvexTest}
+            >
+              Test convex
+            </button>
+          </div>
+        </section>
 
-        {/* container */}
-        <div className="flex justify-center min-w-1/2 drop-shadow-md bg-amber-950/20 rounded-md overflow-y-auto p-12">
+        <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="rounded-2xl border border-fuchsia-500/20 bg-neutral-900/60 p-6 shadow-lg shadow-fuchsia-900/15 backdrop-blur">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-medium text-fuchsia-200">Clerk state</h3>
+              <span className="text-xs uppercase tracking-wide text-neutral-400">Live</span>
+            </div>
+            <pre className="mt-4 max-h-64 overflow-y-auto rounded-xl border border-fuchsia-500/10 bg-neutral-950/60 p-4 text-xs text-fuchsia-100">
+              {isLoaded
+                ? JSON.stringify(
+                    {
+                      isSignedIn,
+                      userId: user?.id ?? null,
+                      email: user?.primaryEmailAddress?.emailAddress ?? null,
+                    },
+                    null,
+                    2,
+                  )
+                : "Loading Clerk state..."}
+            </pre>
+          </div>
 
-          {/* button */}
-          <button color="black" className="text-white bg-amber-800 hover:bg-amber-950 px-6 py-3 rounded-md drop-shadow-md cursor-pointer" onClick={handleConvexTest}>
-            test convex
-          </button>
-        </div>
-      </section>
-
-      {/* debug */}
-      <section className="flex flex-row grid-cols-2 gap-3 justify-center max-w-full max-h-75 mt-12 mx-[10%] bg-neutral-800 drop-shadow-md rounded-md p-4">
-
-        <div className="flex justify-start align-top min-w-1/2 drop-shadow-md bg-fuchsia-950/20 rounded-md p-12 overflow-y-auto">
-          <pre className="whitespace-pre-wrap text-xs">{/* added clerk debug output */}
-            {isLoaded
-              ? JSON.stringify(
-                {
-                  isSignedIn,
-                  userId: user?.id ?? null,
-                  email: user?.primaryEmailAddress?.emailAddress ?? null,
-                },
-                null,
-                2,
-              )
-              : "Loading Clerk state..."}
-          </pre>
-        </div>
-
-        <div className="flex justify-start min-w-1/2 drop-shadow-md bg-amber-950/20 rounded-md overflow-y-auto p-12">
-
-          {/* added convex debug output */}
-          <pre className="whitespace-pre-wrap text-xs">
-            {(() => {
-              if (!isLoaded) return "Loading Clerk state...";
-              if (!isSignedIn) return "Sign in to load Convex data.";
-              if (messages === undefined) return "Loading Convex data...";
-              if (messages.length === 0) return "No messages yet.";
-              return JSON.stringify({ messageCount: messages.length, messages }, null, 2);
-            })()}
-          </pre>
-        </div>
-      </section>
-    </main >
-  )
+          <div className="rounded-2xl border border-amber-500/20 bg-neutral-900/60 p-6 shadow-lg shadow-amber-900/15 backdrop-blur">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-medium text-amber-200">Convex data</h3>
+              <span className="text-xs uppercase tracking-wide text-neutral-400">Live</span>
+            </div>
+            <pre className="mt-4 max-h-64 overflow-y-auto rounded-xl border border-amber-500/10 bg-neutral-950/60 p-4 text-xs text-amber-100">
+              {(() => {
+                if (!isLoaded) return "Loading Clerk state...";
+                if (!isSignedIn) return "Sign in to load Convex data.";
+                if (messages === undefined) return "Loading Convex data...";
+                if (messages.length === 0) return "No messages yet.";
+                return JSON.stringify({ messageCount: messages.length, messages }, null, 2);
+              })()}
+            </pre>
+          </div>
+        </section>
+      </div>
+    </main>
+  );
 }
