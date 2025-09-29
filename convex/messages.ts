@@ -1,18 +1,32 @@
-import { query } from './_generated/server'
+// convex/messages.ts
+import { query, mutation } from "./_generated/server";
+import { v } from "convex/values"
 
 export const getForCurrentUser = query({
   args: {},
   handler: async (ctx) => {
-    // set the user id
-    const identity = await ctx.auth.getUserIdentity()
-    // if there is no user id, return []
-    if (identity === null) {
-      return []
-    }
-    // pull the user data, filtered by identity.email
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+
     return await ctx.db
-      .query('messages')
-      .filter((q) => q.eq(q.field('author'), identity.tokenIdentifier))
-      .collect()
+      .query("messages")
+      .withIndex("by_author_createdAt", (q) =>
+        q.eq("author", identity.tokenIdentifier)
+      )
+      .order("desc") 
+      .take(50);
   },
-})
+});
+
+export const add = mutation({
+  args: { body: v.string() },
+  handler: async (ctx, { body }) => {
+    const id = await ctx.auth.getUserIdentity();
+    if (!id) throw new Error("Not authenticated");
+    return await ctx.db.insert("messages", {
+      author: id.tokenIdentifier,
+      body,
+      createdAt: Date.now(),
+    });
+  },
+});

@@ -4,10 +4,8 @@ import { Authenticated, Unauthenticated, useQuery } from "convex/react"; // adde
 import { SignInButton, UserButton, useUser } from "@clerk/nextjs"; // added useUser for clerk debug test
 import { api } from "@/convex/_generated/api"; // added convex api for debug query
 import { useMutation } from "convex/react";
-import { redirect } from "next/navigation";
 
 export default function Home() {
-  if(process.env.NODE_ENV === "development") redirect("/test");
   const { user, isLoaded, isSignedIn } = useUser(); // added clerk state for debug output
   const messages = useQuery(api.messages.getForCurrentUser, isSignedIn ? {} : "skip"); // added convex query guarded by auth. Wait for user to be authenicated, then call useQuery to get the messages for the current user.
 
