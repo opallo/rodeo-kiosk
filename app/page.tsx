@@ -6,7 +6,7 @@ import { api } from "@/convex/_generated/api"; // added convex api for debug que
 
 export default function Home() {
   const { user, isLoaded, isSignedIn } = useUser(); // added clerk state for debug output
-  const messages = useQuery(api.messages.getForCurrentUser, isSignedIn ? {} : undefined); // added convex query guarded by auth
+  const messages = useQuery(api.messages.getForCurrentUser, isSignedIn ? {} : "skip"); // added convex query guarded by auth. Wait for user to be authenicated, then call useQuery to get the messages for the current user.
 
   const handleClerkTest = () => { // added handler to log clerk debug info
     console.debug("Clerk debug", {
@@ -83,32 +83,29 @@ export default function Home() {
           <pre className="whitespace-pre-wrap text-xs">{/* added clerk debug output */}
             {isLoaded
               ? JSON.stringify(
-                  {
-                    isSignedIn,
-                    userId: user?.id ?? null,
-                    email: user?.primaryEmailAddress?.emailAddress ?? null,
-                  },
-                  null,
-                  2,
-                )
+                {
+                  isSignedIn,
+                  userId: user?.id ?? null,
+                  email: user?.primaryEmailAddress?.emailAddress ?? null,
+                },
+                null,
+                2,
+              )
               : "Loading Clerk state..."}
           </pre>
         </div>
 
         <div className="flex justify-start min-w-1/2 drop-shadow-md bg-amber-950/20 rounded-md overflow-y-auto p-12">
-          <pre className="whitespace-pre-wrap text-xs">{/* added convex debug output */}
-            {isSignedIn
-              ? messages
-                ? JSON.stringify(
-                    {
-                      messageCount: messages.length,
-                      messages,
-                    },
-                    null,
-                    2,
-                  )
-                : "Loading Convex data..."
-              : "Sign in to load Convex data."}
+
+          {/* added convex debug output */}
+          <pre className="whitespace-pre-wrap text-xs">
+            {(() => {
+              if (!isLoaded) return "Loading Clerk state...";
+              if (!isSignedIn) return "Sign in to load Convex data.";
+              if (messages === undefined) return "Loading Convex data...";
+              if (messages.length === 0) return "No messages yet.";
+              return JSON.stringify({ messageCount: messages.length, messages }, null, 2);
+            })()}
           </pre>
         </div>
       </section>
