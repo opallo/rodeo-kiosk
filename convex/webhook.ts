@@ -6,7 +6,7 @@ import { action } from "./_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 
-export const issueTickets = action({
+const issueTicketsAction = action({
   args: {
     secret: v.string(),
     owner: v.string(),
@@ -37,3 +37,5 @@ export const issueTickets = action({
     return { ok: true, minted };
   },
 });
+
+export const issueTickets = issueTicketsAction;
