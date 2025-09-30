@@ -1,6 +1,22 @@
-﻿"use client";
+﻿// components/BuyTicketButton.tsx
+
+"use client";
 
 import { useState } from "react";
+
+export type CreateCheckoutRequest = {
+  priceId: string;
+  quantity: number;
+  eventId: string;
+};
+
+export type CreateCheckoutResponse = {
+  url?: string;
+  error?: {
+    message: string;
+    code?: string;
+  };
+};
 
 export type BuyTicketButtonDebugEntry = {
   type: "request" | "success" | "error";
@@ -14,6 +30,8 @@ export type BuyTicketButtonProps = {
   onDebug?: (entry: BuyTicketButtonDebugEntry) => void;
 };
 
+const EVENT_ID = "general-admission";
+
 export default function BuyTicketButton({ priceId, onDebug }: BuyTicketButtonProps) {
   const [qty, setQty] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -24,22 +42,44 @@ export default function BuyTicketButton({ priceId, onDebug }: BuyTicketButtonPro
 
   const handleClick = async () => {
     setLoading(true);
+
+    const payload: CreateCheckoutRequest = {
+      priceId,
+      quantity: qty,
+      eventId: EVENT_ID,
+    };
+
     emitDebug({
       type: "request",
       message: `Creating checkout session for ${qty} ticket${qty === 1 ? "" : "s"}.`,
-      payload: { priceId, quantity: qty },
+      payload,
     });
 
     try {
       const res = await fetch("/api/checkout", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ priceId, quantity: qty }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
 
-      const { url, error } = await res.json();
+      if (!res.ok) {
+        // Try to parse an error body; if not JSON, fall back to status text
+        let body: unknown;
+        try {
+          body = await res.json();
+        } catch {
+          body = { message: res.statusText };
+        }
+        emitDebug({
+          type: "error",
+          message: `Checkout API returned HTTP ${res.status}`,
+          payload: body,
+        });
+        return;
+      }
+
+      const data: CreateCheckoutResponse = await res.json();
+      const { url, error } = data;
 
       if (error) {
         emitDebug({
@@ -47,20 +87,24 @@ export default function BuyTicketButton({ priceId, onDebug }: BuyTicketButtonPro
           message: "Checkout API returned an error.",
           payload: error,
         });
-      } else if (url) {
-        emitDebug({
-          type: "success",
-          message: "Redirecting to Stripe Checkout.",
-          payload: { url },
-        });
-        window.open(url, "_blank");
-      } else {
+        return;
+      }
+
+      if (!url) {
         emitDebug({
           type: "error",
           message: "Checkout API response missing redirect URL.",
-          payload: { response: { url, error } },
+          payload: data,
         });
+        return;
       }
+
+      emitDebug({
+        type: "success",
+        message: "Opening Stripe Checkout in a new tab.",
+        payload: { url },
+      });
+      window.open(url, "_blank");
     } catch (err) {
       emitDebug({
         type: "error",

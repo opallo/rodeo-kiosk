@@ -14,6 +14,8 @@ import type {
   FunctionReference,
 } from "convex/server";
 import type * as messages from "../messages.js";
+import type * as tickets from "../tickets.js";
+import type * as webhook from "../webhook.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -25,6 +27,8 @@ import type * as messages from "../messages.js";
  */
 declare const fullApi: ApiFromModules<{
   messages: typeof messages;
+  tickets: typeof tickets;
+  webhook: typeof webhook;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,
