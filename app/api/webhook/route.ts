@@ -1,11 +1,14 @@
 // app/api/webhook/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "@/convex/_generated/api";
 
 export const runtime = "nodejs"; // required: webhooks can't run on Edge
 export const dynamic = "force-dynamic"; // avoid static optimization
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const convex = new ConvexHttpClient(process.env.CONVEX_URL!);
 
 export async function POST(req: NextRequest) {
   // 1) Read raw body for signature verification
@@ -30,8 +33,44 @@ export async function POST(req: NextRequest) {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        // TODO: mint/activate ticket in Convex (idempotent on event.id)
-        // session.id, session.client_reference_id, session.metadata, etc.
+        const clientReferenceId = session.client_reference_id;
+        const metadata = session.metadata as Stripe.Metadata | null;
+        const eventId = metadata?.["eventId"];
+        const quantityRaw = metadata?.["quantity"];
+
+        if (!clientReferenceId || !eventId || !quantityRaw) {
+          console.error("Missing checkout metadata", {
+            clientReferenceId,
+            eventId,
+            quantity: quantityRaw,
+          });
+          return NextResponse.json({ error: "Missing checkout metadata" }, { status: 400 });
+        }
+
+        const quantity = Number(quantityRaw);
+        if (!Number.isFinite(quantity) || quantity <= 0) {
+          console.error("Invalid ticket quantity", { quantity: quantityRaw });
+          return NextResponse.json({ error: "Invalid ticket quantity" }, { status: 400 });
+        }
+
+        const secret = process.env.FORM_ACTION_SECRET;
+        if (!secret) {
+          console.error("FORM_ACTION_SECRET is not configured");
+          throw new Error("FORM_ACTION_SECRET is required");
+        }
+
+        try {
+          await convex.action(api.webhook.issueTickets, {
+            secret,
+            owner: clientReferenceId,
+            eventId,
+            quantity,
+            stripeEventId: event.id,
+          });
+        } catch (convexError) {
+          console.error("Failed to issue tickets in Convex", convexError);
+          throw convexError;
+        }
         break;
       }
       case "checkout.session.expired": {
