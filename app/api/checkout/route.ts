@@ -1,43 +1,57 @@
-// app/api/checkout/route.ts
+// Notes for developer:
+// - NEXT_PUBLIC_SITE_URL and STRIPE_SECRET_KEY must be set in Next.js env.
+// - Clerk auth.protect() ensures only signed-in users can initiate checkout.
+
+import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { auth } from "@clerk/nextjs/server";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const stripeSecret = process.env.STRIPE_SECRET_KEY;
+if (!stripeSecret) {
+  throw new Error("STRIPE_SECRET_KEY is required");
+}
+
+const stripe = new Stripe(stripeSecret);
 
 export async function POST(req: NextRequest) {
-  // 1) Clerk: make sure the user is signed in
   const { userId, sessionClaims } = await auth.protect();
-
-  // 2) Extract a stable owner key for your ticket rows
-  //    (Clerk JWTs often include tokenIdentifier in sessionClaims)
   const tokenIdentifier =
     (sessionClaims as { tokenIdentifier?: string } | null)?.tokenIdentifier ??
     `clerk:${userId}`;
 
-  // 3) Read the payload from your button
-  const { priceId, quantity } = await req.json();
+  const body = await req.json();
+  const priceId = body?.priceId as string | undefined;
+  const quantityInput = Number(body?.quantity ?? 1);
+  const eventId = (body?.eventId as string | undefined) ?? "general";
 
-  // (Optional) tiny guard; you can beef this up later
-  if (!priceId || !quantity) {
-    return NextResponse.json({ error: "Missing priceId or quantity" }, { status: 400 });
+  if (!priceId || Number.isNaN(quantityInput) || quantityInput <= 0) {
+    return NextResponse.json(
+      { error: "Missing priceId or invalid quantity" },
+      { status: 400 },
+    );
   }
 
-  // 4) Create the Checkout Session
+  const quantity = Math.max(1, Math.floor(quantityInput));
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+  if (!siteUrl) {
+    return NextResponse.json({ error: "NEXT_PUBLIC_SITE_URL is not set" }, { status: 500 });
+  }
+
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     line_items: [{ price: priceId, quantity }],
-    success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/test`,
-    cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/test`,
-    client_reference_id: tokenIdentifier, // <-- this ties the paid session to your user
-    metadata:{
-      eventId: "demo",
+    success_url: `${siteUrl}/test`,
+    cancel_url: `${siteUrl}/test`,
+    client_reference_id: tokenIdentifier,
+    metadata: {
+      eventId,
       quantity: String(quantity),
-    }
+    },
   });
 
-  // 5) Give the client the URL to open (you already use window.open(url, "_blank"))
   return NextResponse.json({ url: session.url });
 }
