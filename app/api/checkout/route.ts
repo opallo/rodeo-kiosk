@@ -19,9 +19,15 @@ export async function POST(req: NextRequest) {
 
   const { priceId, eventId, quantity = 1 } = await req.json();
 
-  // ✅ Use the Convex-compatible tokenIdentifier from sessionClaims
+  type SessionClaims = {
+    tokenIdentifier?: unknown;
+  } | null;
+
+  const claims = sessionClaims as SessionClaims;
   const tokenIdentifier =
-    (sessionClaims as any)?.tokenIdentifier ?? `clerk:${userId}`;
+    claims && typeof claims.tokenIdentifier === "string"
+      ? claims.tokenIdentifier
+      : `clerk:${userId}`;
 
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
