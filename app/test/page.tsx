@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react";
 import { Authenticated, Unauthenticated, useQuery } from "convex/react"; // added useQuery for convex debug test
 import { SignInButton, UserButton, useUser } from "@clerk/nextjs"; // added useUser for clerk debug test
 import { api } from "@/convex/_generated/api"; // added convex api for debug query
@@ -11,6 +12,7 @@ export default function Home() {
   const messages = useQuery(api.messages.getForCurrentUser, isSignedIn ? {} : "skip"); // added convex query guarded by auth. Wait for user to be authenicated, then call useQuery to get the messages for the current user.
 
   const addMessage = useMutation(api.messages.add);
+  const [quantity, setQuantity] = useState(1);
   const handleAddDemoMessage = () => {
     addMessage({ body: "demo-" + Date.now() });
   }
@@ -30,6 +32,14 @@ export default function Home() {
       messageCount: messages?.length ?? "n/a",
       messages,
     });
+  };
+
+  const handleQuantityChange = (delta: number) => {
+    setQuantity((prev) => Math.max(1, prev + delta));
+  };
+
+  const handlePurchase = () => {
+    console.debug("Ticket purchase", { quantity });
   };
 
   return (
@@ -140,6 +150,56 @@ export default function Home() {
                   return JSON.stringify({ messageCount: messages.length, messages }, null, 2);
                 })()}
               </pre>
+            </div>
+          </section>
+
+          <section className="border-t border-neutral-800/80 bg-neutral-900/40 px-6 py-10 sm:px-10">
+            <div className="mx-auto max-w-3xl space-y-6 rounded-2xl border border-sky-500/20 bg-neutral-950/60 p-6 shadow-inner">
+              <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <span className="text-xs uppercase tracking-[0.3em] text-sky-400/70">Ticketing sandbox</span>
+                  <h3 className="mt-1 text-xl font-semibold text-sky-100">Purchase mock</h3>
+                  <p className="text-sm text-neutral-400">
+                    Adjust the quantity to simulate a Rodeo ticket purchase flow.
+                  </p>
+                </div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/30 bg-sky-900/30 px-3 py-1 text-xs font-medium text-sky-100">
+                  Debug Mode
+                </div>
+              </header>
+
+              <div className="grid gap-4 rounded-xl border border-sky-500/20 bg-neutral-900/40 p-5 sm:grid-cols-[auto_1fr_auto] sm:items-center">
+                <div className="flex items-center gap-2 text-neutral-300">
+                  <span className="text-xs uppercase tracking-widest text-neutral-500">Quantity</span>
+                </div>
+                <div className="flex items-center justify-center gap-3">
+                  <button
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-sky-500/30 bg-sky-900/40 text-lg font-semibold text-sky-100 transition hover:border-sky-300/60 hover:bg-sky-800/50"
+                    onClick={() => handleQuantityChange(-1)}
+                    aria-label="Decrease quantity"
+                  >
+                    −
+                  </button>
+                  <span className="min-w-[3rem] rounded-lg border border-neutral-700/60 bg-neutral-950/70 px-4 py-2 text-center text-lg font-semibold tracking-wide text-white">
+                    {quantity}
+                  </span>
+                  <button
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-sky-500/30 bg-sky-900/40 text-lg font-semibold text-sky-100 transition hover:border-sky-300/60 hover:bg-sky-800/50"
+                    onClick={() => handleQuantityChange(1)}
+                    aria-label="Increase quantity"
+                  >
+                    +
+                  </button>
+                </div>
+                <div className="sm:text-right">
+                  <button
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-900/40 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:border-emerald-300/60 hover:bg-emerald-800/50 sm:w-auto"
+                    onClick={handlePurchase}
+                  >
+                    Complete purchase
+                  </button>
+                </div>
+              </div>
             </div>
           </section>
         </div>
