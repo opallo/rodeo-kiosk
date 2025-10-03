@@ -53,7 +53,7 @@ export default function BuyTicketButton({ priceId, onDebug }: BuyTicketButtonPro
           message: "Redirecting to Stripe Checkout.",
           payload: { url },
         });
-        window.open(url, "_blank");
+        window.open(url, "_self");
       } else {
         emitDebug({
           type: "error",
