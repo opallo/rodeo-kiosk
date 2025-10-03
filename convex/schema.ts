@@ -62,16 +62,15 @@ export default defineSchema({
 
   // Stripe at-least-once safety net (dedupe + audit)
   stripeEvents: defineTable({
-    stripeEventId: v.string(),            // event.id
+    eventId: v.string(),                  // Stripe event.id (unique per delivery attempt)
     type: v.string(),                     // e.g., checkout.session.completed
-    created: v.number(),                  // Stripe's event.created (s)
-    firstSeenAt: v.number(),              // ms epoch
-    lastHandledAt: v.optional(v.number()),
-    handled: v.boolean(),
-    payloadHash: v.string(),              // hash(rawBody) for audit
-    sessionId: v.optional(v.string())     // extracted if present
+    created: v.number(),                  // Stripe's event.created (s epoch)
+    sessionId: v.string(),                // checkout.session id we fulfilled
+    clientReferenceId: v.optional(v.string()),
+    raw: v.string(),                      // raw JSON for audit + debugging
   })
-    .index("by_eventId", ["stripeEventId"])
+    .index("by_eventId", ["eventId"])
+    .index("by_created", ["created"])
     .index("by_sessionId", ["sessionId"]),
 
   // Atomic redemption trail (auditable, supports replays)
