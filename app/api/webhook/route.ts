@@ -1,8 +1,9 @@
 // app/api/webhook/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { fetchMutation } from "convex/nextjs";
+import { fetchMutation, type NextjsOptions } from "convex/nextjs";
 import { internal } from "@/convex/_generated/api";
+import type { ArgsAndOptions, FunctionReference } from "convex/server";
 
 export const runtime = "nodejs"; // required: webhooks can't run on Edge
 export const dynamic = "force-dynamic"; // avoid static optimization
@@ -17,6 +18,20 @@ function isCheckoutSession(object: unknown): object is Stripe.Checkout.Session {
     !!object &&
     typeof object === "object" &&
     (object as { object?: string }).object === "checkout.session"
+  );
+}
+
+async function fetchInternalMutation<
+  Mutation extends FunctionReference<"mutation", "internal">
+>(
+  mutation: Mutation,
+  ...args: ArgsAndOptions<Mutation, NextjsOptions>
+) {
+  // Convex's helper currently only types public mutations. Casting through `unknown`
+  // keeps type-safety for callers while allowing us to invoke an internal mutation.
+  return fetchMutation(
+    mutation as unknown as FunctionReference<"mutation">,
+    ...(args as ArgsAndOptions<FunctionReference<"mutation">, NextjsOptions>)
   );
 }
 
@@ -50,7 +65,7 @@ export async function POST(req: NextRequest) {
           throw new Error("Unexpected object payload for checkout.session.completed");
         }
 
-        await fetchMutation(internal.stripeEvents.ingest, {
+        await fetchInternalMutation(internal.stripeEvents.ingest, {
           eventId: event.id,
           type: event.type,
           created: event.created,
