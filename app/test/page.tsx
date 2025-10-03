@@ -11,6 +11,7 @@ export default function Home() {
   const messages = useQuery(api.messages.getForCurrentUser, isSignedIn ? {} : "skip"); // added convex query guarded by auth. Wait for user to be authenicated, then call useQuery to get the messages for the current user.
   const addMessage = useMutation(api.messages.add);
   const [stripeLogs, setStripeLogs] = useState<BuyTicketButtonDebugEntry[]>([]);
+  const stripeEvents = useQuery(api.stripeEvents.listRecent, { limit: 10 });
 
   const handleAddDemoMessage = () => {
     addMessage({ body: "demo-" + Date.now() });
@@ -41,6 +42,22 @@ export default function Home() {
   const stripeLogContent = stripeLogs.length
     ? JSON.stringify(stripeLogs, null, 2)
     : "Use the Stripe checkout controls to populate debug logs.";
+
+  const stripeEventsContent = (() => {
+    if (stripeEvents === undefined) return "Loading webhook events...";
+    if (stripeEvents.length === 0) return "No webhook events ingested yet.";
+    return JSON.stringify(
+      stripeEvents.map(({ eventId, type, sessionId, clientReferenceId, created }) => ({
+        eventId,
+        type,
+        sessionId,
+        clientReferenceId: clientReferenceId ?? null,
+        created,
+      })),
+      null,
+      2,
+    );
+  })();
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950 py-8 text-neutral-100">
@@ -154,6 +171,16 @@ export default function Home() {
               <p className="text-sm text-neutral-400">Launch test checkout and capture debug events.</p>
             </div>
             <BuyTicketButton priceId="price_1SCow4LGtZ8BdkwqLaowXCyE" onDebug={handleStripeDebug} />
+          </div>
+
+          <div className="flex flex-col gap-4 bg-neutral-950/70 p-6">
+            <header className="space-y-1">
+              <p className="text-[11px] uppercase tracking-[0.28em] text-neutral-500">Stripe webhooks</p>
+              <h3 className="text-lg font-semibold text-sky-200">Last 10 ingested events</h3>
+            </header>
+            <pre className="h-56 overflow-y-auto border border-sky-500/20 bg-neutral-950/80 p-4 text-xs leading-relaxed text-sky-100">
+              {stripeEventsContent}
+            </pre>
           </div>
 
           <div className="flex flex-col gap-4 bg-neutral-950/70 p-6">
