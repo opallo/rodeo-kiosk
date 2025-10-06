@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Authenticated, Unauthenticated, useMutation, useQuery } from "convex/react"; // added useQuery for convex debug test
 import { SignInButton, UserButton, useUser } from "@clerk/nextjs"; // added useUser for clerk debug test
 import { api } from "@/convex/_generated/api"; // added convex api for debug query
+import type { Doc } from "@/convex/_generated/dataModel";
 import BuyTicketButton, { BuyTicketButtonDebugEntry } from "@/components/BuyTicketButton";
 
 export default function Home() {
@@ -11,7 +12,16 @@ export default function Home() {
   const messages = useQuery(api.messages.getForCurrentUser, isSignedIn ? {} : "skip"); // added convex query guarded by auth. Wait for user to be authenicated, then call useQuery to get the messages for the current user.
   const addMessage = useMutation(api.messages.add);
   const [stripeLogs, setStripeLogs] = useState<BuyTicketButtonDebugEntry[]>([]);
-  const stripeEvents = useQuery(api.stripeEvents.listRecent, { limit: 10 });
+  const stripeEvents: Doc<"stripeEvents">[] | undefined = useQuery(
+    api.stripeEvents.listRecent,
+    { limit: 10 }
+  );
+  const recentTickets: Doc<"tickets">[] | undefined = useQuery(
+    api.ticketsPublic.listForOwner,
+    isSignedIn && user
+      ? { owner: user.id, limit: 5 }
+      : "skip"
+  );
 
   const handleAddDemoMessage = () => {
     addMessage({ body: "demo-" + Date.now() });
@@ -53,6 +63,22 @@ export default function Home() {
         sessionId,
         clientReferenceId: clientReferenceId ?? null,
         created,
+      })),
+      null,
+      2,
+    );
+  })();
+
+  const recentTicketsContent = (() => {
+    if (!isSignedIn) return "Sign in to view recent tickets.";
+    if (recentTickets === undefined) return "Loading recent tickets...";
+    if (recentTickets.length === 0) return "No tickets minted yet.";
+    return JSON.stringify(
+      recentTickets.map((ticket) => ({
+        status: ticket.status,
+        eventId: ticket.eventId,
+        ticketId: `${ticket.ticketId.slice(0, 8)}…`,
+        issuedAt: ticket.issuedAt,
       })),
       null,
       2,
@@ -180,6 +206,16 @@ export default function Home() {
             </header>
             <pre className="h-56 overflow-y-auto border border-sky-500/20 bg-neutral-950/80 p-4 text-xs leading-relaxed text-sky-100">
               {stripeEventsContent}
+            </pre>
+          </div>
+
+          <div className="flex flex-col gap-4 bg-neutral-950/70 p-6">
+            <header className="space-y-1">
+              <p className="text-[11px] uppercase tracking-[0.28em] text-neutral-500">Tickets</p>
+              <h3 className="text-lg font-semibold text-emerald-200">Recent tickets (mine)</h3>
+            </header>
+            <pre className="h-56 overflow-y-auto border border-emerald-500/20 bg-neutral-950/80 p-4 text-xs leading-relaxed text-emerald-100">
+              {recentTicketsContent}
             </pre>
           </div>
 

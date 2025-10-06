@@ -1,11 +1,43 @@
 // app/api/checkout/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
+import { auth } from "@clerk/nextjs/server";
+
+type StripeApiVersion = string;
+
+type StripeCheckoutSessionCreateParams = {
+  mode: "payment";
+  line_items: Array<{ price: string; quantity: number }>;
+  client_reference_id?: string;
+  metadata?: Record<string, string>;
+  success_url: string;
+  cancel_url: string;
+};
+
+type StripeCheckoutSession = {
+  id: string;
+  url: string | null;
+};
+
+type StripeConstructor = new (
+  apiKey: string,
+  config?: {
+    apiVersion?: StripeApiVersion | null;
+    maxNetworkRetries?: number;
+  },
+) => {
+  checkout: {
+    sessions: {
+      create(params: StripeCheckoutSessionCreateParams): Promise<StripeCheckoutSession>;
+    };
+  };
+};
+
+const StripeClient = require("stripe") as StripeConstructor;
 
 export const runtime = "nodejs";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: process.env.STRIPE_API_VERSION as Stripe.LatestApiVersion | undefined,
+const stripe = new StripeClient(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: process.env.STRIPE_API_VERSION ?? undefined,
   maxNetworkRetries: 2,
 });
 
@@ -15,6 +47,8 @@ type CheckoutRequest = {
 };
 
 export async function POST(req: NextRequest) {
+  const { userId } = await auth.protect();
+
   const body = (await req.json()) as CheckoutRequest;
 
   if (typeof body.priceId !== "string" || !body.priceId) {
@@ -31,9 +65,12 @@ export async function POST(req: NextRequest) {
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     line_items: [{ price: body.priceId, quantity: parsedQuantity }],
-    client_reference_id: crypto.randomUUID(), // Attach a stable key so the webhook can link back to the client request.
-    metadata: { eventId: "demo-event-123" }, // Minimal metadata proves end-to-end flow and is easy to extend later.
-    success_url: `${siteUrl}/payment-succeeded`,
+    client_reference_id: userId,
+    metadata: {
+      eventId: "demo-event-123",
+      quantity: String(parsedQuantity),
+    },
+    success_url: `${siteUrl}/checkout-succeeded?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${siteUrl}/payment-failed`,
   });
 
