@@ -33,8 +33,8 @@ export async function POST(req: NextRequest) {
     line_items: [{ price: body.priceId, quantity: parsedQuantity }],
     client_reference_id: crypto.randomUUID(), // Attach a stable key so the webhook can link back to the client request.
     metadata: { eventId: "demo-event-123" }, // Minimal metadata proves end-to-end flow and is easy to extend later.
-    success_url: `${siteUrl}/payment-succeeded`,
-    cancel_url: `${siteUrl}/payment-failed`,
+    success_url: `${siteUrl}`,
+    cancel_url: `${siteUrl}`,
   });
 
   return NextResponse.json({ url: session.url });
