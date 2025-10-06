@@ -80,6 +80,34 @@ export async function POST(req: NextRequest) {
 
         // ✅ Call the PUBLIC ACTION, not the internal mutation
         await fetchAction(api.stripeEvents.ingestAction, payload);
+
+        const tokenIdentifier = obj.metadata?.tokenIdentifier;
+        if (typeof tokenIdentifier !== "string" || !tokenIdentifier) {
+          // Stay strict: if we don't know who owns the ticket, don't mint yet.
+          console.warn("[webhook] Missing metadata.tokenIdentifier; skipping mint.");
+          break;
+        }
+
+        const mintToken = process.env.CONVEX_MINT_TOKEN;
+        if (!mintToken) {
+          console.error("[webhook] Missing CONVEX_MINT_TOKEN in Next.js env; skipping mint.");
+          break;
+        }
+
+        const mintResult = await fetchAction(api.ticketsActions.mintFromCheckoutSessionAction, {
+          sessionId: obj.id,
+          eventId: obj.metadata?.eventId ?? "demo-event-123",
+          tokenIdentifier,
+          amountTotal: obj.amount_total ?? 0,
+          currency: obj.currency ?? "usd",
+          created: event.created, // seconds epoch
+          token: mintToken, // shared secret checked by the action
+        });
+
+        console.log("[webhook] minted ticket", {
+          sessionId: obj.id,
+          result: mintResult,
+        });
         break;
       }
       default:
