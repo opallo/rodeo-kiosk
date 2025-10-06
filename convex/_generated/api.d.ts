@@ -15,6 +15,7 @@ import type {
 } from "convex/server";
 import type * as messages from "../messages.js";
 import type * as stripeEvents from "../stripeEvents.js";
+import type * as tickets from "../tickets.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -27,6 +28,7 @@ import type * as stripeEvents from "../stripeEvents.js";
 declare const fullApi: ApiFromModules<{
   messages: typeof messages;
   stripeEvents: typeof stripeEvents;
+  tickets: typeof tickets;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,
