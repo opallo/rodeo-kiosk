@@ -1,6 +1,7 @@
 // app/api/checkout/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import { randomUUID } from "node:crypto";
 import { auth } from "@clerk/nextjs/server";
 
 export const runtime = "nodejs";
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     line_items: [{ price: body.priceId, quantity }],
-    client_reference_id: crypto.randomUUID(),
+    client_reference_id: randomUUID(),
     // 👇 webhook will read these to mint the ticket
     metadata: {
       eventId,
