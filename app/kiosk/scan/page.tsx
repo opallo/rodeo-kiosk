@@ -1,4 +1,3 @@
-// app/kiosk/scan/page.tsx
 "use client";
 
 import { SignedIn, SignedOut, SignInButton, useUser } from "@clerk/nextjs";
@@ -77,13 +76,31 @@ function Scanner() {
 
   useEffect(() => {
     const reader = new BrowserMultiFormatReader();
-    let stopped = false;
 
     (async () => {
       try {
-        // null deviceId lets zxing choose the default camera
+        // Try facingMode first
+        try {
+          const controls = await reader.decodeFromConstraints(
+            { video: { facingMode: { ideal: "environment" } } },
+            videoRef.current!,
+            (result) => {
+              if (!result || busy) return;
+              const text = result.getText().trim();
+              if (!text || recentlySeen(text)) return;
+              onDecode(text);
+            }
+          );
+          controlsRef.current = controls;
+          return;
+        } catch {
+          // fall through to deviceId selection
+        }
+
+        // Fallback: pick a deviceId that looks like back/rear
+        const deviceId = await pickBestBackCameraDeviceId();
         const controls = await reader.decodeFromVideoDevice(
-          undefined,
+          deviceId,                // undefined = let ZXing choose default
           videoRef.current!,
           (result) => {
             if (!result || busy) return;
@@ -94,18 +111,19 @@ function Scanner() {
         );
         controlsRef.current = controls;
       } catch (e) {
-        setOut({ status: 0, data: { ok: false, error: (e as Error)?.message ?? "Camera error" } });
+        setOut({
+          status: 0,
+          data: { ok: false, error: (e as Error)?.message ?? "Camera error" },
+        });
       }
     })();
 
     return () => {
-      stopped = true;
       controlsRef.current?.stop();
       controlsRef.current = null;
     };
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [busy]); // busy included just to silence lints; not required
+  }, [busy]);
 
   async function onDecode(ticketId: string) {
     setLastScan(ticketId);
@@ -115,7 +133,7 @@ function Scanner() {
       const res = await fetch("/api/tickets/redeem", {
         method: "POST",
         headers: { "content-type": "application/json", accept: "application/json" },
-        credentials: "include", // Clerk cookie (route also checks kiosk role)
+        credentials: "include",
         body: JSON.stringify({ ticketId, kioskId }),
       });
       const data = await res.json();
@@ -126,7 +144,6 @@ function Scanner() {
         data: { ok: false, error: e instanceof Error ? e.message : String(e) },
       });
     } finally {
-      // brief cooldown to avoid hammering the route
       setTimeout(() => setBusy(false), 600);
     }
   }
@@ -162,4 +179,19 @@ function Scanner() {
       </div>
     </div>
   );
+}
+
+// Helper: choose a back camera by label; fallback to last device
+async function pickBestBackCameraDeviceId(): Promise<string | undefined> {
+  try {
+    const tmp = await navigator.mediaDevices.getUserMedia({ video: true });
+    tmp.getTracks().forEach((t) => t.stop());
+  } catch {
+    // ignore
+  }
+  const devices = await BrowserMultiFormatReader.listVideoInputDevices();
+  if (!devices.length) return undefined;
+
+  const backish = devices.find((d) => /back|rear|environment/i.test(d.label));
+  return backish?.deviceId ?? devices[devices.length - 1]?.deviceId ?? undefined;
 }
