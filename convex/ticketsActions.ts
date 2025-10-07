@@ -41,3 +41,36 @@ export const mintFromCheckoutSessionAction = action({
     return result;
   },
 });
+
+// Action return shape (mirrors the internal mutation's result)
+type RedeemOk  = { ok: true;  code: "ok"; ticketId: string };
+type RedeemErr = { ok: false; code: "invalid" | "already_used" | "void" | "refunded" };
+type RedeemResult = RedeemOk | RedeemErr;
+
+export const redeemTicketAction = action({
+  args: {
+    ticketId: v.string(),
+    kioskId: v.string(),
+    token: v.string(),           // CONVEX_REDEEM_TOKEN
+    ip: v.optional(v.string()),  // optional pass-through for audit
+    userAgent: v.optional(v.string()),
+  },
+  
+  // Explicit Promise<RedeemResult> avoids TS7022
+  handler: async (ctx, args): Promise<RedeemResult> => {
+    const expected = process.env.CONVEX_REDEEM_TOKEN;
+    if (!expected || args.token !== expected) {
+      throw new Error("Unauthorized");
+    }
+
+    // Import here to avoid top-level circular references
+    const { internal } = await import("./_generated/api");
+
+    return await ctx.runMutation(internal.tickets.redeem, {
+      ticketId: args.ticketId,
+      kioskId: args.kioskId,
+      ip: args.ip,
+      userAgent: args.userAgent,
+    });
+  },
+});

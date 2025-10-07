@@ -5,6 +5,8 @@ import { Authenticated, Unauthenticated, useMutation, useQuery } from "convex/re
 import { SignInButton, UserButton, useUser } from "@clerk/nextjs"; // added useUser for clerk debug test
 import { api } from "@/convex/_generated/api"; // added convex api for debug query
 import BuyTicketButton, { BuyTicketButtonDebugEntry } from "@/components/BuyTicketButton";
+import TicketValidateWidget from "@/components/TicketValidateWidget";
+import TicketRedeemWidget from "@/components/TicketRedeemWidget";
 
 export default function Home() {
   const { user, isLoaded, isSignedIn } = useUser(); // added clerk state for debug output
@@ -192,6 +194,8 @@ export default function Home() {
               {stripeLogContent}
             </pre>
           </div>
+      <TicketValidateWidget />
+      <TicketRedeemWidget />
         </section>
       </div>
     </main>

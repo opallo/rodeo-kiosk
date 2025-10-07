@@ -114,3 +114,99 @@ export const mintFromCheckoutSession = internalMutation({
     return { minted: true, ticketId: ticketCode, _id: ticketDocId };
   },
 });
+
+// Read one ticket by its public ticket code (QR payload)
+export const getByTicketId = query({
+  args: { ticketId: v.string() },
+  handler: async (ctx, { ticketId }) => {
+    const t = await ctx.db
+      .query("tickets")
+      .withIndex("by_ticketId", (q) => q.eq("ticketId", ticketId))
+      .first();
+
+    if (!t) return null;
+
+    // Minimal, safe shape for validators
+    return {
+      ticketId: t.ticketId,
+      eventId: t.eventId,
+      status: t.status,
+      issuedAt: t.issuedAt,
+      // (no owner or email fields exposed)
+    };
+  },
+});
+
+// Put these near the top of convex/tickets.ts (once per file is fine)
+type RedeemOk = { ok: true; code: "ok"; ticketId: string };
+type RedeemErr = { ok: false; code: "invalid" | "already_used" | "void" | "refunded" };
+type RedeemResult = RedeemOk | RedeemErr;
+
+// INTERNAL: redeem a ticket (mark "used") and write an audit trail
+export const redeem = internalMutation({
+  args: {
+    ticketId: v.string(),
+    kioskId: v.string(),
+    ip: v.optional(v.string()),
+    userAgent: v.optional(v.string()),
+  },
+  // 👇 Explicit return type avoids the need for `as const` on expressions
+  handler: async (ctx, { ticketId, kioskId, ip, userAgent }): Promise<RedeemResult> => {
+    const now = Date.now();
+
+    const t = await ctx.db
+      .query("tickets")
+      .withIndex("by_ticketId", (q) => q.eq("ticketId", ticketId))
+      .first();
+
+    if (!t) {
+      await ctx.db.insert("redemptions", {
+        ticketId,
+        kioskId,
+        redeemedAt: now,
+        ip,
+        userAgent,
+        // schema supports: "ok" | "already_used" | "invalid"
+        result: "invalid",
+      });
+      return { ok: false, code: "invalid" };
+    }
+
+    // Only "active" tickets can be redeemed
+    if (t.status !== "active") {
+      // Map non-active statuses to a stable failure code for return/UI.
+      // We store "already_used" in the audit row for any non-active case.
+      const failCode: RedeemErr["code"] =
+        t.status === "used" ? "already_used" : t.status; // "void" or "refunded"
+
+      await ctx.db.insert("redemptions", {
+        ticketId: t.ticketId,
+        kioskId,
+        redeemedAt: now,
+        ip,
+        userAgent,
+        result: "already_used", // audit trail: covers used/void/refunded for scanners
+      });
+
+      return { ok: false, code: failCode };
+    }
+
+    // Mark used + stamp who redeemed it
+    await ctx.db.patch(t._id, {
+      status: "used",
+      redeemedAt: now,
+      redeemedByKioskId: kioskId,
+    });
+
+    await ctx.db.insert("redemptions", {
+      ticketId: t.ticketId,
+      kioskId,
+      redeemedAt: now,
+      ip,
+      userAgent,
+      result: "ok",
+    });
+
+    return { ok: true, code: "ok", ticketId: t.ticketId };
+  },
+});
