@@ -3,10 +3,21 @@
 
 import { useState } from "react";
 
+type TicketSummary = {
+  ticketId: string;
+  eventId: string;
+  status: string;
+  issuedAt: number;
+};
+type ValidateFound = { ok: true; found: true; ticket: TicketSummary };
+type ValidateNotFound = { ok: true; found: false };
+type ValidateError = { ok: false; error: string };
+type ValidateResult = ValidateFound | ValidateNotFound | ValidateError;
+
 export default function TicketValidateWidget() {
   const [ticketId, setTicketId] = useState("");
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<null | { ok: boolean; found?: boolean; ticket?: any; error?: string }>(null);
+  const [result, setResult] = useState<ValidateResult | null>(null);
 
   async function onCheck() {
     if (!ticketId) return;

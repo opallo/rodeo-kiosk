@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
         metadata: session.metadata ?? {},
       },
     });
-  } catch (err) {
+  } catch {
     return NextResponse.json({ ok: false, error: "Failed to retrieve session" }, { status: 500 });
   }
 }

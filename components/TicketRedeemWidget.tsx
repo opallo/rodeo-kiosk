@@ -3,11 +3,20 @@
 
 import { useState } from "react";
 
+type RedeemSuccess = { ok: true; code: "ok"; ticketId: string };
+type RedeemFailureCode = {
+  ok: false;
+  code: "invalid" | "already_used" | "void" | "refunded";
+};
+type RedeemFailureMessage = { ok: false; error: string };
+type RedeemPayload = RedeemSuccess | RedeemFailureCode | RedeemFailureMessage;
+type RedeemState = { status: number; data: RedeemPayload };
+
 export default function TicketRedeemWidget() {
   const [ticketId, setTicketId] = useState("");
   const [kioskId, setKioskId] = useState("front-gate-1");
   const [busy, setBusy] = useState(false);
-  const [out, setOut] = useState<null | any>(null);
+  const [out, setOut] = useState<RedeemState | null>(null);
 
   async function redeem() {
     setBusy(true);
