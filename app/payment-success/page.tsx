@@ -1,7 +1,7 @@
 // app/payment-success/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs"; // 👈 add
@@ -15,6 +15,14 @@ type SessionCheck = OkPayload | ErrPayload;
 const isOk = (x: SessionCheck): x is OkPayload => x.ok === true;
 
 export default function PaymentSuccess() {
+  return (
+    <Suspense fallback={<PaymentSuccessFallback />}>
+      <PaymentSuccessInner />
+    </Suspense>
+  );
+}
+
+function PaymentSuccessInner() {
   const params = useSearchParams();
   const sessionId = params.get("session_id");
   const [status, setStatus] =
@@ -118,6 +126,19 @@ export default function PaymentSuccess() {
             </div>
           )}
         </SignedIn>
+      </div>
+    </main>
+  );
+}
+
+function PaymentSuccessFallback() {
+  return (
+    <main className="min-h-screen bg-neutral-950 text-neutral-100 p-8">
+      <div className="mx-auto max-w-xl space-y-4">
+        <h1 className="text-2xl font-semibold">Thanks! Checking your ticket…</h1>
+        <div className="rounded-md border border-neutral-800 p-4 text-sm text-neutral-400">
+          Loading purchase details…
+        </div>
       </div>
     </main>
   );

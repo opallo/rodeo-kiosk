@@ -5,6 +5,15 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { BrowserMultiFormatReader, type IScannerControls } from "@zxing/browser";
 
+type RedeemSuccess = { ok: true; code: "ok"; ticketId: string };
+type RedeemFailureCode = {
+  ok: false;
+  code: "invalid" | "already_used" | "void" | "refunded";
+};
+type RedeemFailureMessage = { ok: false; error: string };
+type RedeemPayload = RedeemSuccess | RedeemFailureCode | RedeemFailureMessage;
+type RedeemState = { status: number; data: RedeemPayload };
+
 export default function KioskScanPage() {
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-100 p-8">
@@ -60,7 +69,7 @@ function Scanner() {
   const [kioskId, setKioskId] = useState("front-gate-1");
   const [lastScan, setLastScan] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [out, setOut] = useState<null | { status: number; data: any }>(null);
+  const [out, setOut] = useState<RedeemState | null>(null);
 
   // De-dupe recent scans for a few seconds
   const recent = useRef<Map<string, number>>(new Map());
