@@ -51,12 +51,12 @@ export default function TicketRedeemWidget() {
         : " border-rose-400/60 bg-rose-950/40 shadow-[0_0_35px_rgba(248,113,113,0.18)]");
 
   const resultToneClasses =
-    "h-40 overflow-y-auto bg-gradient-to-br from-emerald-950 via-neutral-950 to-rose-950 p-3 text-xs leading-relaxed" +
+    "h-40 overflow-y-auto rounded bg-gradient-to-b p-3 text-xs leading-relaxed transition-colors duration-300" +
     (statusTone === "neutral"
-      ? " border border-neutral-700/50 text-neutral-200"
+      ? " from-neutral-800 via-neutral-950 to-black border border-neutral-700/60 text-neutral-200"
       : statusTone === "success"
-        ? " border border-emerald-400/60 text-emerald-100"
-        : " border border-rose-400/60 text-rose-100");
+        ? " from-emerald-900 via-emerald-950 to-emerald-900 border border-emerald-400/60 text-emerald-100"
+        : " from-rose-900 via-rose-950 to-rose-900 border border-rose-400/60 text-rose-100");
 
   return (
     <div className={cardToneClasses}>
