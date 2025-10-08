@@ -6,9 +6,8 @@ import type { Id } from "./_generated/dataModel";
 
 // The action will always return this shape
 type MintResult = {
-  minted: boolean;
-  ticketId: string;
-  _id: Id<"tickets">;
+  mintedCount: number;
+  tickets: { ticketId: string; _id: Id<"tickets"> }[];
 };
 
 export const mintFromCheckoutSessionAction = action({
@@ -19,6 +18,7 @@ export const mintFromCheckoutSessionAction = action({
     amountTotal: v.number(),
     currency: v.string(),
     created: v.number(), // seconds epoch from Stripe event
+    quantity: v.number(),
     token: v.string(),   // CONVEX_MINT_TOKEN
   },
   // 👇 key fix: explicitly type the handler's Promise return
@@ -36,6 +36,7 @@ export const mintFromCheckoutSessionAction = action({
         amountTotal: args.amountTotal,
         currency: args.currency,
         created: args.created,
+        quantity: args.quantity,
       }
     );
     return result;

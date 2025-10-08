@@ -146,15 +146,14 @@ function PaymentSuccessFallback() {
 
 function TicketViewer({ sessionId }: { sessionId: string }) {
   // Query once we're "paid"
-  const ticket = useQuery(api.tickets.getBySessionId, sessionId ? { sessionId } : "skip");
+  const tickets = useQuery(api.tickets.getBySessionId, sessionId ? { sessionId } : "skip");
 
-  // 👇 add this local UI state
-  const [copied, setCopied] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  if (ticket === undefined) {
+  if (tickets === undefined) {
     return <p className="text-sm text-emerald-300/80">Looking for your ticket…</p>;
   }
-  if (ticket === null) {
+  if (!tickets || tickets.length === 0) {
     return (
       <>
         <p className="font-medium text-emerald-200">Payment confirmed.</p>
@@ -165,47 +164,71 @@ function TicketViewer({ sessionId }: { sessionId: string }) {
     );
   }
 
-  async function copyId() {
+  async function copyId(ticketId: string) {
     try {
-      await navigator.clipboard.writeText(ticket!.ticketId);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      await navigator.clipboard.writeText(ticketId);
+      setCopiedId(ticketId);
+      setTimeout(() => setCopiedId((current) => (current === ticketId ? null : current)), 1500);
     } catch {
       // no-op; clipboard can be blocked by the browser
     }
   }
 
   return (
-    <div className="space-y-3">
-      <p className="font-medium text-emerald-200">Your ticket is ready.</p>
+    <div className="space-y-4">
+      <p className="font-medium text-emerald-200">
+        {tickets.length === 1 ? "Your ticket is ready." : "Your tickets are ready."}
+      </p>
 
-      <div className="rounded border border-emerald-800/60 bg-emerald-900/20 p-3 text-sm">
-        <div><span className="opacity-70">Ticket ID:</span> {ticket.ticketId}</div>
-        <div><span className="opacity-70">Event:</span> {ticket.eventId}</div>
-        <div><span className="opacity-70">Status:</span> {ticket.status}</div>
-        <div><span className="opacity-70">Issued:</span> {new Date(ticket.issuedAt).toLocaleString()}</div>
+      <div className="space-y-4">
+        {tickets.map((ticket) => {
+          const isCopied = copiedId === ticket.ticketId;
+          return (
+            <div
+              key={ticket.id}
+              className="space-y-3 rounded border border-emerald-800/60 bg-emerald-900/20 p-3 text-sm"
+            >
+              <div className="space-y-1">
+                <div>
+                  <span className="opacity-70">Ticket ID:</span> {ticket.ticketId}
+                </div>
+                <div>
+                  <span className="opacity-70">Event:</span> {ticket.eventId}
+                </div>
+                <div>
+                  <span className="opacity-70">Status:</span> {ticket.status}
+                </div>
+                <div>
+                  <span className="opacity-70">Issued:</span> {new Date(ticket.issuedAt).toLocaleString()}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <button
+                  onClick={() => copyId(ticket.ticketId)}
+                  className="rounded border border-emerald-500/40 bg-emerald-900/40 px-3 py-1.5 text-sm font-medium hover:border-emerald-300/60 hover:bg-emerald-800/40"
+                >
+                  {isCopied ? "Copied!" : "Copy ticket ID"}
+                </button>
+
+                {/* QR block — white background helps scanners */}
+                <div className="inline-flex items-center justify-center rounded-md border border-neutral-800 bg-white p-3">
+                  <QRCode value={ticket.ticketId} size={160} />
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      <div className="flex gap-2">
-        <button
-          onClick={copyId}
-          className="rounded border border-emerald-500/40 bg-emerald-900/40 px-3 py-1.5 text-sm font-medium hover:border-emerald-300/60 hover:bg-emerald-800/40"
-        >
-          {copied ? "Copied!" : "Copy ticket ID"}
-        </button>
-
+      <div>
         <Link
           href="/"
-          className="rounded border border-neutral-600/50 bg-neutral-800/40 px-3 py-1.5 text-sm hover:border-neutral-400/60 hover:bg-neutral-800/60"
+          className="inline-flex rounded border border-neutral-600/50 bg-neutral-800/40 px-3 py-1.5 text-sm hover:border-neutral-400/60 hover:bg-neutral-800/60"
         >
           Back to debug
         </Link>
       </div>
-      {/* QR block — white background helps scanners */}
-      <div className="mt-3 inline-flex items-center justify-center rounded-md border border-neutral-800 bg-white p-3">
-        <QRCode value={ticket.ticketId} size={160} />
-      </div>
-
     </div>
   );
 }

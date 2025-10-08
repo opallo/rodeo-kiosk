@@ -55,7 +55,7 @@ export default defineSchema({
     ),
     customerId: v.optional(v.string()),   // Stripe customer id
     createdAt: v.number(),                // ms epoch
-    ticketId: v.optional(v.string())      // back-ref after mint
+    ticketIds: v.array(v.string()),       // back-ref(s) after mint
   })
     .index("by_session", ["stripeSessionId"])
     .index("by_token", ["tokenIdentifier"]),

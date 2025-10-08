@@ -1,24 +1,24 @@
 // convex/tickets.ts
 import { query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
+import type { Id } from "./_generated/dataModel";
 
 // PUBLIC QUERY: read a ticket by its Stripe Checkout Session id
 export const getBySessionId = query({
   args: { sessionId: v.string() },
   handler: async (ctx, { sessionId }) => {
-    const ticket = await ctx.db
+    const tickets = await ctx.db
       .query("tickets")
       .withIndex("by_session", (q) => q.eq("stripeSessionId", sessionId))
-      .first();
+      .collect();
 
-    if (!ticket) return null;
-    return {
+    return tickets.map((ticket) => ({
       id: ticket._id,
       ticketId: ticket.ticketId,
       eventId: ticket.eventId,
       status: ticket.status,
       issuedAt: ticket.issuedAt,
-    };
+    }));
   },
 });
 
@@ -31,6 +31,7 @@ export const mintFromCheckoutSession = internalMutation({
     amountTotal: v.number(),     // cents
     currency: v.string(),        // "usd"
     created: v.number(),         // Stripe event.created (seconds epoch)
+    quantity: v.number(),        // number of tickets sold in this session
   },
   handler: async (ctx, args) => {
     console.log("[tickets.mint] start", {
@@ -39,20 +40,13 @@ export const mintFromCheckoutSession = internalMutation({
       amountTotal: args.amountTotal,
       currency: args.currency,
       created: args.created,
+      quantity: args.quantity,
     });
-    // Idempotency: if a ticket already exists for this session, return it.
-    const existingTicket = await ctx.db
+    // Idempotency: load all tickets for this session and only mint what we're missing.
+    const existingTickets = await ctx.db
       .query("tickets")
       .withIndex("by_session", (q) => q.eq("stripeSessionId", args.sessionId))
-      .first();
-    if (existingTicket) {
-      console.log("[tickets.mint] already minted", {
-        sessionId: args.sessionId,
-        ticketId: existingTicket.ticketId,
-        _id: existingTicket._id,
-      });
-      return { minted: false, ticketId: existingTicket.ticketId, _id: existingTicket._id };
-    }
+      .collect();
 
     // Also upsert a purchase row keyed by session
     const existingPurchase = await ctx.db
@@ -60,28 +54,46 @@ export const mintFromCheckoutSession = internalMutation({
       .withIndex("by_session", (q) => q.eq("stripeSessionId", args.sessionId))
       .first();
 
-    // Simple unguessable ticket code (demo). Swap to crypto if you prefer.
-    const ticketCode =
-      Math.random().toString(36).slice(2, 12) +
-      Math.random().toString(36).slice(2, 12);
+    const alreadyMintedSummaries = existingTickets.map((ticket) => ({
+      ticketId: ticket.ticketId,
+      _id: ticket._id,
+    }));
 
-    const nowMs = Date.now();
+    const targetQuantity = Math.max(1, Math.floor(args.quantity));
+    const remainingToMint = Math.max(0, targetQuantity - existingTickets.length);
 
-    const ticketDocId = await ctx.db.insert("tickets", {
-      ticketId: ticketCode,
-      eventId: args.eventId,
-      ownerTokenIdentifier: args.tokenIdentifier,
-      emailSnapshot: undefined,
-      stripeSessionId: args.sessionId,
-      status: "active",
-      validFrom: undefined,
-      validTo: undefined,
-      issuedAt: nowMs,
-      redeemedAt: undefined,
-      redeemedByKioskId: undefined,
-      emailSentAt: undefined,
-      emailProviderMessageId: undefined,
-    });
+    const mintedTickets: { ticketId: string; _id: Id<"tickets"> }[] = [];
+
+    if (remainingToMint > 0) {
+      const nowMs = Date.now();
+      for (let i = 0; i < remainingToMint; i++) {
+        const ticketCode =
+          Math.random().toString(36).slice(2, 12) +
+          Math.random().toString(36).slice(2, 12);
+
+        const ticketDocId = await ctx.db.insert("tickets", {
+          ticketId: ticketCode,
+          eventId: args.eventId,
+          ownerTokenIdentifier: args.tokenIdentifier,
+          emailSnapshot: undefined,
+          stripeSessionId: args.sessionId,
+          status: "active",
+          validFrom: undefined,
+          validTo: undefined,
+          issuedAt: nowMs,
+          redeemedAt: undefined,
+          redeemedByKioskId: undefined,
+          emailSentAt: undefined,
+          emailProviderMessageId: undefined,
+        });
+
+        mintedTickets.push({ ticketId: ticketCode, _id: ticketDocId });
+      }
+    }
+
+    const allTickets = [...alreadyMintedSummaries, ...mintedTickets];
+
+    const purchaseTicketIds = allTickets.map((ticket) => ticket.ticketId);
 
     if (!existingPurchase) {
       await ctx.db.insert("purchases", {
@@ -93,25 +105,42 @@ export const mintFromCheckoutSession = internalMutation({
         paymentStatus: "paid",
         customerId: undefined,
         createdAt: args.created * 1000, // s → ms
-        ticketId: ticketCode,
+        ticketIds: purchaseTicketIds,
       });
-    } else if (!existingPurchase.ticketId) {
+    } else {
+      const previousTicketIds = Array.isArray(existingPurchase.ticketIds)
+        ? [...existingPurchase.ticketIds]
+        : [];
+      const legacyTicketId = (existingPurchase as unknown as { ticketId?: string }).ticketId;
+      if (legacyTicketId && !previousTicketIds.includes(legacyTicketId)) {
+        previousTicketIds.push(legacyTicketId);
+      }
+
+      const mergedTicketIds = Array.from(new Set([...previousTicketIds, ...purchaseTicketIds]));
+
       await ctx.db.patch(existingPurchase._id, {
-        ticketId: ticketCode,
+        ticketIds: mergedTicketIds,
         paymentStatus: "paid",
+        ticketId: undefined,
       });
     }
 
-    console.log("[tickets.mint] minted", {
-      sessionId: args.sessionId,
-      ticketId: ticketCode,
-      ticketDocId,
-    });
+    if (mintedTickets.length === 0) {
+      console.log("[tickets.mint] already minted", {
+        sessionId: args.sessionId,
+        ticketIds: allTickets.map((ticket) => ticket.ticketId),
+      });
+    } else {
+      console.log("[tickets.mint] minted", {
+        sessionId: args.sessionId,
+        ticketIds: mintedTickets.map((ticket) => ticket.ticketId),
+        ticketDocIds: mintedTickets.map((ticket) => ticket._id),
+      });
+    }
 
-    // If you upsert/patch purchases, logging there helps too:
     console.log("[tickets.mint] purchase upserted/updated", { sessionId: args.sessionId });
 
-    return { minted: true, ticketId: ticketCode, _id: ticketDocId };
+    return { mintedCount: mintedTickets.length, tickets: allTickets };
   },
 });
 
