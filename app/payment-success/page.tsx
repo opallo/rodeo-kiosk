@@ -78,7 +78,7 @@ export default function PaymentSuccess() {
               <p>
                 No <code>session_id</code> in the URL.
               </p>
-              <Link href="/test" className="underline">
+              <Link href="/" className="underline">
                 Back to test page
               </Link>
             </div>
