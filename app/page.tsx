@@ -167,7 +167,6 @@ function PurchaseHistory() {
   const purchases = useQuery(api.purchases.listSuccessfulForCurrentUser, {});
   const [selectedPurchase, setSelectedPurchase] = useState<PurchaseSummary | null>(null);
   const [activeTicketIndex, setActiveTicketIndex] = useState(0);
-  const [swipeStartX, setSwipeStartX] = useState<number | null>(null);
   const [copiedTicketId, setCopiedTicketId] = useState<string | null>(null);
 
   const dateFormatter = useMemo(
@@ -189,7 +188,6 @@ function PurchaseHistory() {
   const closeModal = useCallback(() => {
     setSelectedPurchase(null);
     setActiveTicketIndex(0);
-    setSwipeStartX(null);
     setCopiedTicketId(null);
   }, []);
 
@@ -224,18 +222,15 @@ function PurchaseHistory() {
   useEffect(() => {
     if (!selectedPurchase) {
       setActiveTicketIndex(0);
-      setSwipeStartX(null);
       return;
     }
 
     setActiveTicketIndex(0);
-    setSwipeStartX(null);
   }, [selectedPurchase]);
 
   const openModalForPurchase = useCallback((purchase: PurchaseSummary) => {
     setSelectedPurchase(purchase);
     setActiveTicketIndex(0);
-    setSwipeStartX(null);
     setCopiedTicketId(null);
   }, []);
 
@@ -250,32 +245,6 @@ function PurchaseHistory() {
     if (!selectedPurchase) return;
     setActiveTicketIndex((current) => Math.max(0, current - 1));
   }, [selectedPurchase]);
-
-  const handlePointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    setSwipeStartX(event.clientX);
-    event.currentTarget.setPointerCapture(event.pointerId);
-  }, []);
-
-  const handlePointerUp = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (swipeStartX === null || !selectedPurchase) {
-        return;
-      }
-
-      const deltaX = event.clientX - swipeStartX;
-      const threshold = 48;
-      if (Math.abs(deltaX) > threshold) {
-        if (deltaX < 0) {
-          goToNextTicket();
-        } else {
-          goToPreviousTicket();
-        }
-      }
-
-      setSwipeStartX(null);
-    },
-    [goToNextTicket, goToPreviousTicket, selectedPurchase, swipeStartX],
-  );
 
   const handleCopyTicketId = useCallback((ticketId: string) => {
     if (!navigator?.clipboard) {
@@ -423,7 +392,6 @@ function PurchaseHistory() {
               <p className="text-sm text-stone-500">
                 Purchased {dateFormatter.format(new Date(selectedPurchase.createdAt))} · {formatAmount(selectedPurchase.amountTotal, selectedPurchase.currency)}
               </p>
-              <p className="text-xs uppercase tracking-[0.28em] text-stone-400">Session {selectedPurchase.stripeSessionId}</p>
             </header>
 
             {selectedPurchase.ticketIds.length === 0 ? (
@@ -437,9 +405,9 @@ function PurchaseHistory() {
                     Ticket {activeTicketIndex + 1} of {selectedPurchase.ticketIds.length}
                   </span>
                   <span className="flex items-center gap-1 text-amber-600">
-                    <span className="hidden sm:inline">Swipe</span>
-                    <span aria-hidden className="text-lg">⟷</span>
-                    <span className="sm:hidden">Swipe</span>
+                    <span className="hidden sm:inline">Use arrows</span>
+                    <span aria-hidden className="text-lg">⇄</span>
+                    <span className="sm:hidden">Tap arrows</span>
                   </span>
                 </div>
                 <div className="relative">
@@ -448,7 +416,7 @@ function PurchaseHistory() {
                     onClick={goToPreviousTicket}
                     disabled={activeTicketIndex === 0}
                     aria-label="View previous ticket"
-                    className="group absolute left-2 top-1/2 -translate-y-1/2 rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-40"
+                    className="group absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-40"
                     onPointerDown={(event) => event.stopPropagation()}
                   >
                     <span className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-600 text-xl text-white shadow-lg ring-4 ring-amber-600/20 transition active:scale-95 group-hover:bg-amber-700">
@@ -473,7 +441,7 @@ function PurchaseHistory() {
                     onClick={goToNextTicket}
                     disabled={activeTicketIndex === selectedPurchase.ticketIds.length - 1}
                     aria-label="View next ticket"
-                    className="group absolute right-2 top-1/2 -translate-y-1/2 rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-40"
+                    className="group absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-40"
                     onPointerDown={(event) => event.stopPropagation()}
                   >
                     <span className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-600 text-xl text-white shadow-lg ring-4 ring-amber-600/20 transition active:scale-95 group-hover:bg-amber-700">
@@ -493,12 +461,7 @@ function PurchaseHistory() {
                       </svg>
                     </span>
                   </button>
-                  <div
-                    className="overflow-hidden rounded-2xl border border-stone-200 bg-stone-50"
-                    onPointerDown={handlePointerDown}
-                    onPointerUp={handlePointerUp}
-                    onPointerLeave={() => setSwipeStartX(null)}
-                  >
+                  <div className="overflow-hidden rounded-2xl border border-stone-200 bg-stone-50">
                     <div
                       className="flex transition-transform duration-300 ease-out"
                       style={{ transform: `translateX(-${activeTicketIndex * 100}%)` }}
