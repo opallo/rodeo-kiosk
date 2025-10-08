@@ -121,7 +121,6 @@ export const mintFromCheckoutSession = internalMutation({
       await ctx.db.patch(existingPurchase._id, {
         ticketIds: mergedTicketIds,
         paymentStatus: "paid",
-        ticketId: undefined,
       });
     }
 
