@@ -1,7 +1,7 @@
 // components/RedeemWidget.tsx
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 type RedeemSuccess = { ok: true; code: "ok"; ticketId: string };
 type RedeemFailureCode = {
@@ -37,8 +37,29 @@ export default function TicketRedeemWidget() {
     }
   }
 
+  const statusTone = useMemo(() => {
+    if (!out) return "neutral" as const;
+    return out.data.ok ? "success" : "error";
+  }, [out]);
+
+  const cardToneClasses =
+    "space-y-3 rounded-md border p-6 transition-colors duration-300" +
+    (statusTone === "neutral"
+      ? " border-neutral-800/80 bg-neutral-950/70"
+      : statusTone === "success"
+        ? " border-emerald-400/60 bg-emerald-950/40 shadow-[0_0_35px_rgba(52,211,153,0.18)]"
+        : " border-rose-400/60 bg-rose-950/40 shadow-[0_0_35px_rgba(248,113,113,0.18)]");
+
+  const resultToneClasses =
+    "h-40 overflow-y-auto rounded bg-gradient-to-b p-3 text-xs leading-relaxed transition-colors duration-300" +
+    (statusTone === "neutral"
+      ? " from-neutral-800 via-neutral-950 to-black border border-neutral-700/60 text-neutral-200"
+      : statusTone === "success"
+        ? " from-emerald-900 via-emerald-950 to-emerald-900 border border-emerald-400/60 text-emerald-100"
+        : " from-rose-900 via-rose-950 to-rose-900 border border-rose-400/60 text-rose-100");
+
   return (
-    <div className="space-y-3 rounded-md border border-neutral-800 bg-neutral-950/70 p-6">
+    <div className={cardToneClasses}>
       <div className="space-y-1">
         <h2 className="text-lg font-semibold text-emerald-200">Redeem ticket</h2>
         <p className="text-[11px] uppercase tracking-[0.28em] text-neutral-500">
@@ -68,7 +89,7 @@ export default function TicketRedeemWidget() {
         </button>
       </div>
 
-      <pre className="h-40 overflow-y-auto border border-emerald-500/20 bg-neutral-950/80 p-3 text-xs leading-relaxed text-emerald-100">
+      <pre className={resultToneClasses}>
         {out ? JSON.stringify(out, null, 2) : "Result will appear here."}
       </pre>
       <p className="text-xs text-neutral-400">
