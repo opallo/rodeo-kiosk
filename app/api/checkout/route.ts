@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { randomUUID } from "node:crypto";
 import { auth } from "@clerk/nextjs/server";
+import { eventIdForPriceId } from "@/lib/pricing";
 
 export const runtime = "nodejs";
 
@@ -14,7 +15,6 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 type CheckoutRequest = {
   priceId?: unknown;
   quantity?: unknown;
-  eventId?: unknown; // optional, lets you set which event this purchase is for
 };
 
 export async function POST(req: NextRequest) {
@@ -32,8 +32,10 @@ export async function POST(req: NextRequest) {
       ? body.quantity
       : 1;
 
-  const eventId =
-    typeof body.eventId === "string" && body.eventId ? body.eventId : "demo-event-123";
+  const eventId = eventIdForPriceId(body.priceId);
+  if (!eventId) {
+    return NextResponse.json({ error: "Unknown priceId" }, { status: 400 });
+  }
 
   // Build a Convex-compatible tokenIdentifier from your Clerk issuer + userId.
   // If you’ve set CLERK_JWT_ISSUER_DOMAIN (recommended), we use it.
