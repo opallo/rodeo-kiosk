@@ -186,6 +186,8 @@ function PurchaseHistory() {
     }
 
     return purchases.map((purchase) => {
+      const ticketIds = Array.isArray(purchase.ticketIds) ? purchase.ticketIds : [];
+      const ticketCount = ticketIds.length;
       const amount = new Intl.NumberFormat("en-US", {
         style: "currency",
         currency: purchase.currency.toUpperCase(),
@@ -199,11 +201,9 @@ function PurchaseHistory() {
           <td className="px-4 py-3 text-sm text-stone-600">{purchase.eventId}</td>
           <td
             className="px-4 py-3 text-sm text-stone-600"
-            title={purchase.ticketIds.length > 0 ? purchase.ticketIds.join(", ") : undefined}
+            title={ticketCount > 0 ? ticketIds.join(", ") : undefined}
           >
-            {purchase.ticketIds.length > 0
-              ? `${purchase.ticketIds.length} ticket${purchase.ticketIds.length === 1 ? "" : "s"}`
-              : "Tickets pending"}
+            {ticketCount > 0 ? `${ticketCount} ticket${ticketCount === 1 ? "" : "s"}` : "Tickets pending"}
           </td>
           <td className="px-4 py-3 text-sm font-semibold text-amber-700">{amount}</td>
         </tr>
