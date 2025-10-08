@@ -3,35 +3,50 @@
 
 import { useMemo, useState } from "react";
 
-type RedeemSuccess = { ok: true; code: "ok"; ticketId: string };
-type RedeemFailureCode = {
+export type RedeemSuccess = { ok: true; code: "ok"; ticketId: string };
+export type RedeemFailureCode = {
   ok: false;
   code: "invalid" | "already_used" | "void" | "refunded";
 };
-type RedeemFailureMessage = { ok: false; error: string };
-type RedeemPayload = RedeemSuccess | RedeemFailureCode | RedeemFailureMessage;
-type RedeemState = { status: number; data: RedeemPayload };
+export type RedeemFailureMessage = { ok: false; error: string };
+export type RedeemPayload =
+  | RedeemSuccess
+  | RedeemFailureCode
+  | RedeemFailureMessage;
+export type RedeemState = { status: number; data: RedeemPayload };
 
-export default function TicketRedeemWidget() {
+type RedeemInput = { ticketId: string; kioskId: string };
+
+type TicketRedeemWidgetProps = {
+  redeemTicket?: (input: RedeemInput) => Promise<RedeemState>;
+};
+
+export default function TicketRedeemWidget({
+  redeemTicket = defaultRedeemTicket,
+}: TicketRedeemWidgetProps) {
   const [ticketId, setTicketId] = useState("");
   const [kioskId, setKioskId] = useState("front-gate-1");
   const [busy, setBusy] = useState(false);
   const [out, setOut] = useState<RedeemState | null>(null);
 
   async function redeem() {
+    const trimmedTicketId = ticketId.trim();
+    const trimmedKioskId = kioskId.trim();
+    if (!trimmedTicketId || !trimmedKioskId) return;
+
     setBusy(true);
     setOut(null);
     try {
-      const res = await fetch("/api/tickets/redeem", {
-        method: "POST",
-        headers: { "content-type": "application/json", accept: "application/json" },
-        credentials: "include", // Clerk cookie → role gate enforced
-        body: JSON.stringify({ ticketId: ticketId.trim(), kioskId: kioskId.trim() }),
+      const result = await redeemTicket({
+        ticketId: trimmedTicketId,
+        kioskId: trimmedKioskId,
       });
-      const data = await res.json();
-      setOut({ status: res.status, data });
+      setOut(result);
     } catch (e) {
-      setOut({ status: 0, data: { ok: false, error: e instanceof Error ? e.message : String(e) } });
+      setOut({
+        status: 0,
+        data: { ok: false, error: e instanceof Error ? e.message : String(e) },
+      });
     } finally {
       setBusy(false);
     }
@@ -82,7 +97,7 @@ export default function TicketRedeemWidget() {
         />
         <button
           onClick={redeem}
-          disabled={!ticketId || !kioskId || busy}
+          disabled={!ticketId.trim() || !kioskId.trim() || busy}
           className="rounded border border-emerald-500/40 bg-emerald-900/40 px-3 py-2 text-sm font-medium hover:border-emerald-300/60 hover:bg-emerald-800/40 disabled:opacity-50"
         >
           {busy ? "Redeeming…" : "Redeem"}
@@ -97,4 +112,28 @@ export default function TicketRedeemWidget() {
       </p>
     </div>
   );
+}
+
+async function defaultRedeemTicket({
+  ticketId,
+  kioskId,
+}: RedeemInput): Promise<RedeemState> {
+  try {
+    const res = await fetch("/api/tickets/redeem", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json",
+      },
+      credentials: "include", // Clerk cookie → role gate enforced server-side
+      body: JSON.stringify({ ticketId, kioskId }),
+    });
+    const data = (await res.json()) as RedeemState["data"];
+    return { status: res.status, data } satisfies RedeemState;
+  } catch (e) {
+    return {
+      status: 0,
+      data: { ok: false, error: e instanceof Error ? e.message : String(e) },
+    } satisfies RedeemState;
+  }
 }

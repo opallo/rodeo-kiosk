@@ -1,18 +1,15 @@
 "use client";
 
+import TicketRedeemWidget, {
+  type RedeemState,
+} from "@/components/TicketRedeemWidget";
 import { SignedIn, SignedOut, SignInButton, useUser } from "@clerk/nextjs";
-import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
 import { BrowserMultiFormatReader, type IScannerControls } from "@zxing/browser";
+import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-type RedeemSuccess = { ok: true; code: "ok"; ticketId: string };
-type RedeemFailureCode = {
-  ok: false;
-  code: "invalid" | "already_used" | "void" | "refunded";
-};
-type RedeemFailureMessage = { ok: false; error: string };
-type RedeemPayload = RedeemSuccess | RedeemFailureCode | RedeemFailureMessage;
-type RedeemState = { status: number; data: RedeemPayload };
+type RedeemRequest = { ticketId: string; kioskId: string };
+type RedeemHandler = (request: RedeemRequest) => Promise<RedeemState>;
 
 export default function KioskScanPage() {
   return (
@@ -59,10 +56,20 @@ function RoleGate() {
       </div>
     );
   }
-  return <Scanner />;
+  return <KioskTools />;
 }
 
-function Scanner() {
+function KioskTools() {
+  const redeemTicket = useRedeemTicket();
+  return (
+    <div className="space-y-6">
+      <TicketRedeemWidget redeemTicket={redeemTicket} />
+      <Scanner redeemTicket={redeemTicket} />
+    </div>
+  );
+}
+
+function Scanner({ redeemTicket }: { redeemTicket: RedeemHandler }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
 
@@ -139,14 +146,8 @@ function Scanner() {
     setBusy(true);
     setOut(null);
     try {
-      const res = await fetch("/api/tickets/redeem", {
-        method: "POST",
-        headers: { "content-type": "application/json", accept: "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ ticketId, kioskId }),
-      });
-      const data = await res.json();
-      setOut({ status: res.status, data });
+      const result = await redeemTicket({ ticketId, kioskId });
+      setOut(result);
     } catch (e) {
       setOut({
         status: 0,
@@ -203,4 +204,52 @@ async function pickBestBackCameraDeviceId(): Promise<string | undefined> {
 
   const backish = devices.find((d) => /back|rear|environment/i.test(d.label));
   return backish?.deviceId ?? devices[devices.length - 1]?.deviceId ?? undefined;
+}
+
+function useRedeemTicket(): RedeemHandler {
+  const inFlight = useRef<Map<string, Promise<RedeemState>>>(new Map());
+
+  return useCallback(async ({ ticketId, kioskId }: RedeemRequest) => {
+    const normalizedTicketId = ticketId.trim();
+    const normalizedKioskId = kioskId.trim();
+    if (!normalizedTicketId || !normalizedKioskId) {
+      return {
+        status: 400,
+        data: { ok: false, error: "ticketId and kioskId are required" },
+      } satisfies RedeemState;
+    }
+
+    const key = `${normalizedTicketId}::${normalizedKioskId}`;
+    const existing = inFlight.current.get(key);
+    if (existing) return existing;
+
+    const request = (async () => {
+      try {
+        const res = await fetch("/api/tickets/redeem", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            accept: "application/json",
+          },
+          credentials: "include", // Clerk auth cookie, role gate enforced server-side using CONVEX_REDEEM_TOKEN
+          body: JSON.stringify({ ticketId: normalizedTicketId, kioskId: normalizedKioskId }),
+        });
+        const data = (await res.json()) as RedeemState["data"];
+        return { status: res.status, data } satisfies RedeemState;
+      } catch (e) {
+        return {
+          status: 0,
+          data: { ok: false, error: e instanceof Error ? e.message : String(e) },
+        } satisfies RedeemState;
+      }
+    })();
+
+    inFlight.current.set(key, request);
+
+    try {
+      return await request;
+    } finally {
+      inFlight.current.delete(key);
+    }
+  }, []);
 }
