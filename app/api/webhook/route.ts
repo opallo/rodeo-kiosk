@@ -88,6 +88,11 @@ export async function POST(req: NextRequest) {
           break;
         }
 
+        const metadataQuantity = obj.metadata?.quantity;
+        const parsedQuantity =
+          typeof metadataQuantity === "string" ? Number.parseInt(metadataQuantity, 10) : NaN;
+        const quantity = Number.isFinite(parsedQuantity) && parsedQuantity > 0 ? parsedQuantity : 1;
+
         const mintToken = process.env.CONVEX_MINT_TOKEN;
         if (!mintToken) {
           console.error("[webhook] Missing CONVEX_MINT_TOKEN in Next.js env; skipping mint.");
@@ -101,12 +106,14 @@ export async function POST(req: NextRequest) {
           amountTotal: obj.amount_total ?? 0,
           currency: obj.currency ?? "usd",
           created: event.created, // seconds epoch
+          quantity,
           token: mintToken, // shared secret checked by the action
         });
 
-        console.log("[webhook] minted ticket", {
+        console.log("[webhook] minted tickets", {
           sessionId: obj.id,
-          result: mintResult,
+          mintedCount: mintResult.mintedCount,
+          ticketIds: mintResult.tickets.map((ticket) => ticket.ticketId),
         });
         break;
       }

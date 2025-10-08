@@ -20,7 +20,11 @@ export const listSuccessfulForCurrentUser = query({
         createdAt: purchase.createdAt,
         amountTotal: purchase.amountTotal,
         currency: purchase.currency,
-        ticketId: purchase.ticketId ?? null,
+        ticketIds: Array.isArray(purchase.ticketIds)
+          ? purchase.ticketIds
+          : (purchase as unknown as { ticketId?: string }).ticketId
+          ? [((purchase as unknown as { ticketId?: string }).ticketId as string)]
+          : [],
         stripeSessionId: purchase.stripeSessionId,
         eventId: purchase.eventId,
       }));

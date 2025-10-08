@@ -186,6 +186,8 @@ function PurchaseHistory() {
     }
 
     return purchases.map((purchase) => {
+      const ticketIds = purchase.ticketIds;
+      const ticketCount = ticketIds.length;
       const amount = new Intl.NumberFormat("en-US", {
         style: "currency",
         currency: purchase.currency.toUpperCase(),
@@ -197,7 +199,12 @@ function PurchaseHistory() {
         <tr key={purchase.stripeSessionId} className="border-t border-stone-200">
           <td className="px-4 py-3 text-sm font-medium text-stone-800">{issuedAt}</td>
           <td className="px-4 py-3 text-sm text-stone-600">{purchase.eventId}</td>
-          <td className="px-4 py-3 text-sm text-stone-600">{purchase.ticketId ?? "Ticket pending"}</td>
+          <td
+            className="px-4 py-3 text-sm text-stone-600"
+            title={ticketCount > 0 ? ticketIds.join(", ") : undefined}
+          >
+            {ticketCount > 0 ? `${ticketCount} ticket${ticketCount === 1 ? "" : "s"}` : "Tickets pending"}
+          </td>
           <td className="px-4 py-3 text-sm font-semibold text-amber-700">{amount}</td>
         </tr>
       );
@@ -225,7 +232,7 @@ function PurchaseHistory() {
                 Event
               </th>
               <th scope="col" className="px-4 py-3 font-medium">
-                Ticket
+                Tickets
               </th>
               <th scope="col" className="px-4 py-3 font-medium">
                 Amount

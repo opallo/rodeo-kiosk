@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
       eventId,
       tokenIdentifier,
       userId, // helpful for debugging; mint uses tokenIdentifier
+      quantity: String(quantity),
     },
     success_url: `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/`,
