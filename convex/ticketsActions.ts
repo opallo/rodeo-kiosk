@@ -18,13 +18,18 @@ export const mintFromCheckoutSessionAction = action({
     amountTotal: v.number(),
     currency: v.string(),
     created: v.number(), // seconds epoch from Stripe event
-    quantity: v.number(),
+    quantity: v.optional(v.number()),
     token: v.string(),   // CONVEX_MINT_TOKEN
   },
   // 👇 key fix: explicitly type the handler's Promise return
   handler: async (ctx, args): Promise<MintResult> => {
     const expected = process.env.CONVEX_MINT_TOKEN;
     if (!expected || args.token !== expected) throw new Error("Unauthorized");
+
+    const quantity =
+      typeof args.quantity === "number" && Number.isFinite(args.quantity) && args.quantity > 0
+        ? args.quantity
+        : 1;
 
     // 👇 and (optionally) annotate the mutation result too
     const result: MintResult = await ctx.runMutation(
@@ -36,7 +41,7 @@ export const mintFromCheckoutSessionAction = action({
         amountTotal: args.amountTotal,
         currency: args.currency,
         created: args.created,
-        quantity: args.quantity,
+        quantity,
       }
     );
     return result;

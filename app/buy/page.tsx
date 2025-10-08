@@ -186,7 +186,7 @@ function PurchaseHistory() {
     }
 
     return purchases.map((purchase) => {
-      const ticketIds = Array.isArray(purchase.ticketIds) ? purchase.ticketIds : [];
+      const ticketIds = purchase.ticketIds;
       const ticketCount = ticketIds.length;
       const amount = new Intl.NumberFormat("en-US", {
         style: "currency",
