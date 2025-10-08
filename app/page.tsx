@@ -327,7 +327,7 @@ function PurchaseHistory() {
       return (
         <tr
           key={purchase.stripeSessionId}
-          className="border-t border-stone-200 transition hover:bg-amber-50/40 focus-within:bg-amber-50/40"
+          className="cursor-pointer border-t border-stone-200 transition hover:bg-amber-50/40 focus-within:bg-amber-50/40"
           onClick={() =>
             openModalForPurchase({
               stripeSessionId: purchase.stripeSessionId,
@@ -443,28 +443,56 @@ function PurchaseHistory() {
                   </span>
                 </div>
                 <div className="relative">
-                  <div className="absolute left-2 top-1/2 hidden -translate-y-1/2 sm:flex">
-                    <button
-                      type="button"
-                      onClick={goToPreviousTicket}
-                      disabled={activeTicketIndex === 0}
-                      className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-lg text-stone-500 shadow ring-1 ring-stone-200 transition hover:text-stone-800 disabled:opacity-30"
-                      aria-label="View previous ticket"
-                    >
-                      ‹
-                    </button>
-                  </div>
-                  <div className="absolute right-2 top-1/2 hidden -translate-y-1/2 sm:flex">
-                    <button
-                      type="button"
-                      onClick={goToNextTicket}
-                      disabled={activeTicketIndex === selectedPurchase.ticketIds.length - 1}
-                      className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-lg text-stone-500 shadow ring-1 ring-stone-200 transition hover:text-stone-800 disabled:opacity-30"
-                      aria-label="View next ticket"
-                    >
-                      ›
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={goToPreviousTicket}
+                    disabled={activeTicketIndex === 0}
+                    aria-label="View previous ticket"
+                    className="group absolute left-2 top-1/2 -translate-y-1/2 rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-40"
+                    onPointerDown={(event) => event.stopPropagation()}
+                  >
+                    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-600 text-xl text-white shadow-lg ring-4 ring-amber-600/20 transition active:scale-95 group-hover:bg-amber-700">
+                      <svg
+                        aria-hidden="true"
+                        viewBox="0 0 24 24"
+                        className="h-6 w-6"
+                      >
+                        <path
+                          d="M15.75 19.5 8.25 12l7.5-7.5"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.75}
+                        />
+                      </svg>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={goToNextTicket}
+                    disabled={activeTicketIndex === selectedPurchase.ticketIds.length - 1}
+                    aria-label="View next ticket"
+                    className="group absolute right-2 top-1/2 -translate-y-1/2 rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-40"
+                    onPointerDown={(event) => event.stopPropagation()}
+                  >
+                    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-600 text-xl text-white shadow-lg ring-4 ring-amber-600/20 transition active:scale-95 group-hover:bg-amber-700">
+                      <svg
+                        aria-hidden="true"
+                        viewBox="0 0 24 24"
+                        className="h-6 w-6"
+                      >
+                        <path
+                          d="m8.25 4.5 7.5 7.5-7.5 7.5"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.75}
+                        />
+                      </svg>
+                    </span>
+                  </button>
                   <div
                     className="overflow-hidden rounded-2xl border border-stone-200 bg-stone-50"
                     onPointerDown={handlePointerDown}
