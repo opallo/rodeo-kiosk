@@ -1,11 +1,12 @@
 "use client";
 
-import { ReactNode, useMemo, useState } from "react";
+import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { Authenticated, Unauthenticated, useQuery } from "convex/react";
 import { SignInButton, useUser } from "@clerk/nextjs";
 
 import { api } from "@/convex/_generated/api";
 import { PRICE_CATALOG } from "@/lib/pricing";
+import QRCode from "react-qr-code";
 
 const PRICE_ID = PRICE_CATALOG.generalAdmission.priceId;
 
@@ -153,8 +154,21 @@ function TicketPurchasePanel({ priceId }: { priceId: string }) {
   );
 }
 
+type PurchaseSummary = {
+  stripeSessionId: string;
+  createdAt: number;
+  amountTotal: number;
+  currency: string;
+  ticketIds: string[];
+  eventId: string;
+};
+
 function PurchaseHistory() {
   const purchases = useQuery(api.purchases.listSuccessfulForCurrentUser, {});
+  const [selectedPurchase, setSelectedPurchase] = useState<PurchaseSummary | null>(null);
+  const [activeTicketIndex, setActiveTicketIndex] = useState(0);
+  const [swipeStartX, setSwipeStartX] = useState<number | null>(null);
+  const [copiedTicketId, setCopiedTicketId] = useState<string | null>(null);
 
   const dateFormatter = useMemo(
     () =>
@@ -164,6 +178,123 @@ function PurchaseHistory() {
       }),
     [],
   );
+
+  const formatAmount = useCallback((amountTotal: number, currency: string) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: currency.toUpperCase(),
+    }).format(amountTotal / 100);
+  }, []);
+
+  const closeModal = useCallback(() => {
+    setSelectedPurchase(null);
+    setActiveTicketIndex(0);
+    setSwipeStartX(null);
+    setCopiedTicketId(null);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedPurchase) {
+      return;
+    }
+
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeModal();
+      }
+      if (event.key === "ArrowRight") {
+        setActiveTicketIndex((current) =>
+          Math.min(current + 1, Math.max(0, selectedPurchase.ticketIds.length - 1)),
+        );
+      }
+      if (event.key === "ArrowLeft") {
+        setActiveTicketIndex((current) => Math.max(0, current - 1));
+      }
+    };
+
+    document.body.classList.add("overflow-hidden");
+    window.addEventListener("keydown", handleKey);
+
+    return () => {
+      document.body.classList.remove("overflow-hidden");
+      window.removeEventListener("keydown", handleKey);
+    };
+  }, [closeModal, selectedPurchase]);
+
+  useEffect(() => {
+    if (!selectedPurchase) {
+      setActiveTicketIndex(0);
+      setSwipeStartX(null);
+      return;
+    }
+
+    setActiveTicketIndex(0);
+    setSwipeStartX(null);
+  }, [selectedPurchase]);
+
+  const openModalForPurchase = useCallback((purchase: PurchaseSummary) => {
+    setSelectedPurchase(purchase);
+    setActiveTicketIndex(0);
+    setSwipeStartX(null);
+    setCopiedTicketId(null);
+  }, []);
+
+  const goToNextTicket = useCallback(() => {
+    if (!selectedPurchase) return;
+    setActiveTicketIndex((current) =>
+      Math.min(current + 1, Math.max(0, selectedPurchase.ticketIds.length - 1)),
+    );
+  }, [selectedPurchase]);
+
+  const goToPreviousTicket = useCallback(() => {
+    if (!selectedPurchase) return;
+    setActiveTicketIndex((current) => Math.max(0, current - 1));
+  }, [selectedPurchase]);
+
+  const handlePointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    setSwipeStartX(event.clientX);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }, []);
+
+  const handlePointerUp = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (swipeStartX === null || !selectedPurchase) {
+        return;
+      }
+
+      const deltaX = event.clientX - swipeStartX;
+      const threshold = 48;
+      if (Math.abs(deltaX) > threshold) {
+        if (deltaX < 0) {
+          goToNextTicket();
+        } else {
+          goToPreviousTicket();
+        }
+      }
+
+      setSwipeStartX(null);
+    },
+    [goToNextTicket, goToPreviousTicket, selectedPurchase, swipeStartX],
+  );
+
+  const handleCopyTicketId = useCallback((ticketId: string) => {
+    if (!navigator?.clipboard) {
+      setCopiedTicketId(null);
+      return;
+    }
+
+    navigator.clipboard
+      .writeText(ticketId)
+      .then(() => {
+        setCopiedTicketId(ticketId);
+        setTimeout(() => {
+          setCopiedTicketId((current) => (current === ticketId ? null : current));
+        }, 1600);
+      })
+      .catch(() => {
+        setCopiedTicketId(null);
+      });
+  }, []);
 
   const renderBody = () => {
     if (purchases === undefined) {
@@ -189,15 +320,41 @@ function PurchaseHistory() {
     return purchases.map((purchase) => {
       const ticketIds = purchase.ticketIds;
       const ticketCount = ticketIds.length;
-      const amount = new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: purchase.currency.toUpperCase(),
-      }).format(purchase.amountTotal / 100);
+      const amount = formatAmount(purchase.amountTotal, purchase.currency);
 
       const issuedAt = dateFormatter.format(new Date(purchase.createdAt));
 
       return (
-        <tr key={purchase.stripeSessionId} className="border-t border-stone-200">
+        <tr
+          key={purchase.stripeSessionId}
+          className="border-t border-stone-200 transition hover:bg-amber-50/40 focus-within:bg-amber-50/40"
+          onClick={() =>
+            openModalForPurchase({
+              stripeSessionId: purchase.stripeSessionId,
+              amountTotal: purchase.amountTotal,
+              currency: purchase.currency,
+              createdAt: purchase.createdAt,
+              ticketIds: purchase.ticketIds,
+              eventId: purchase.eventId,
+            })
+          }
+          tabIndex={0}
+          role="button"
+          aria-label={`View receipt for purchase on ${issuedAt}`}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              openModalForPurchase({
+                stripeSessionId: purchase.stripeSessionId,
+                amountTotal: purchase.amountTotal,
+                currency: purchase.currency,
+                createdAt: purchase.createdAt,
+                ticketIds: purchase.ticketIds,
+                eventId: purchase.eventId,
+              });
+            }
+          }}
+        >
           <td className="px-4 py-3 text-sm font-medium text-stone-800">{issuedAt}</td>
           <td className="px-4 py-3 text-sm text-stone-600">{purchase.eventId}</td>
           <td
@@ -243,6 +400,123 @@ function PurchaseHistory() {
           <tbody className="bg-white">{renderBody()}</tbody>
         </table>
       </div>
+
+      {selectedPurchase ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-10">
+          <div className="absolute inset-0 bg-stone-950/70 backdrop-blur-sm" onClick={closeModal} />
+          <div className="relative z-10 w-full max-w-xl space-y-6 rounded-3xl border border-amber-100 bg-white p-6 shadow-2xl">
+            <header className="space-y-1">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-600">Receipt details</p>
+                  <h3 className="text-xl font-semibold text-stone-900">{selectedPurchase.eventId}</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-stone-100 text-stone-500 transition hover:bg-stone-200 hover:text-stone-700"
+                  aria-label="Close receipt details"
+                >
+                  ×
+                </button>
+              </div>
+              <p className="text-sm text-stone-500">
+                Purchased {dateFormatter.format(new Date(selectedPurchase.createdAt))} · {formatAmount(selectedPurchase.amountTotal, selectedPurchase.currency)}
+              </p>
+              <p className="text-xs uppercase tracking-[0.28em] text-stone-400">Session {selectedPurchase.stripeSessionId}</p>
+            </header>
+
+            {selectedPurchase.ticketIds.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-amber-200 bg-amber-50/60 p-6 text-center text-sm text-amber-700">
+                Tickets are still minting for this purchase. Check back in a moment and they’ll appear here automatically.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.24em] text-stone-400">
+                  <span>
+                    Ticket {activeTicketIndex + 1} of {selectedPurchase.ticketIds.length}
+                  </span>
+                  <span className="flex items-center gap-1 text-amber-600">
+                    <span className="hidden sm:inline">Swipe</span>
+                    <span aria-hidden className="text-lg">⟷</span>
+                    <span className="sm:hidden">Swipe</span>
+                  </span>
+                </div>
+                <div className="relative">
+                  <div className="absolute left-2 top-1/2 hidden -translate-y-1/2 sm:flex">
+                    <button
+                      type="button"
+                      onClick={goToPreviousTicket}
+                      disabled={activeTicketIndex === 0}
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-lg text-stone-500 shadow ring-1 ring-stone-200 transition hover:text-stone-800 disabled:opacity-30"
+                      aria-label="View previous ticket"
+                    >
+                      ‹
+                    </button>
+                  </div>
+                  <div className="absolute right-2 top-1/2 hidden -translate-y-1/2 sm:flex">
+                    <button
+                      type="button"
+                      onClick={goToNextTicket}
+                      disabled={activeTicketIndex === selectedPurchase.ticketIds.length - 1}
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-lg text-stone-500 shadow ring-1 ring-stone-200 transition hover:text-stone-800 disabled:opacity-30"
+                      aria-label="View next ticket"
+                    >
+                      ›
+                    </button>
+                  </div>
+                  <div
+                    className="overflow-hidden rounded-2xl border border-stone-200 bg-stone-50"
+                    onPointerDown={handlePointerDown}
+                    onPointerUp={handlePointerUp}
+                    onPointerLeave={() => setSwipeStartX(null)}
+                  >
+                    <div
+                      className="flex transition-transform duration-300 ease-out"
+                      style={{ transform: `translateX(-${activeTicketIndex * 100}%)` }}
+                    >
+                      {selectedPurchase.ticketIds.map((ticketId) => (
+                        <div key={ticketId} className="flex w-full shrink-0 flex-col items-center gap-6 p-6">
+                          <div className="rounded-3xl bg-white p-4 shadow-inner">
+                            <QRCode value={ticketId} size={192} />
+                          </div>
+                          <div className="space-y-2 text-center text-sm text-stone-600">
+                            <p className="text-xs uppercase tracking-[0.24em] text-stone-400">Ticket code</p>
+                            <p className="font-semibold text-stone-900">{ticketId}</p>
+                            <p>Show this code at the gate. The QR above is ready to scan.</p>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyTicketId(ticketId)}
+                              className="inline-flex items-center justify-center rounded-full bg-amber-600 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow transition hover:bg-amber-700"
+                            >
+                              {copiedTicketId === ticketId ? "Copied" : "Copy code"}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="mt-4 flex justify-center gap-2">
+                    {selectedPurchase.ticketIds.map((ticketId, index) => (
+                      <button
+                        key={ticketId}
+                        type="button"
+                        onClick={() => setActiveTicketIndex(index)}
+                        className={`h-2.5 w-2.5 rounded-full transition ${
+                          index === activeTicketIndex
+                            ? "scale-110 bg-amber-600"
+                            : "bg-stone-200 hover:bg-stone-300"
+                        }`}
+                        aria-label={`Show ticket ${index + 1}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
