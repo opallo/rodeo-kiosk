@@ -1,8 +1,10 @@
 "use client";
 
 import { ReactNode, useMemo, useState } from "react";
-import { Authenticated, Unauthenticated } from "convex/react";
+import { Authenticated, Unauthenticated, useQuery } from "convex/react";
 import { SignInButton, useUser } from "@clerk/nextjs";
+
+import { api } from "@/convex/_generated/api";
 
 const PRICE_ID = "price_1SCow4LGtZ8BdkwqLaowXCyE";
 
@@ -32,7 +34,7 @@ function TicketPurchasePanel({ priceId }: { priceId: string }) {
     setLoading(true);
     setFeedback({
       tone: "info",
-      message: `Creating a secure checkout for ${qty} ticket${qty === 1 ? "" : "s"}...`,
+      message: `Preparing checkout for ${qty} ticket${qty === 1 ? "" : "s"}...`,
     });
 
     try {
@@ -52,7 +54,7 @@ function TicketPurchasePanel({ priceId }: { priceId: string }) {
       if (!url) {
         setFeedback({
           tone: "error",
-          message: "We couldn't find a checkout session to open. Please try once more.",
+          message: "We couldn’t find a checkout session to open. Please try once more.",
         });
         return;
       }
@@ -71,66 +73,66 @@ function TicketPurchasePanel({ priceId }: { priceId: string }) {
   };
 
   return (
-    <div className="space-y-6 rounded-3xl bg-white/90 p-8 shadow-xl ring-1 ring-slate-100 backdrop-blur">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-rose-400">Rodeo tickets</p>
-          <h2 className="mt-2 text-3xl font-semibold text-slate-900">Secure your seats</h2>
-          <p className="mt-2 text-base text-slate-600">
-            Choose how many tickets you need and complete your purchase with our trusted checkout powered by Stripe.
-          </p>
-        </div>
-        <div className="rounded-2xl bg-rose-50 px-4 py-3 text-right text-sm font-semibold text-rose-500">
-          <div className="text-xs uppercase tracking-[0.2em] text-rose-400">Total</div>
-          <div className="text-2xl text-rose-500">{totalLabel}</div>
-        </div>
-      </div>
+    <section className="space-y-6 rounded-3xl border border-stone-200 bg-white p-8 shadow-sm">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-600">Secure checkout</p>
+        <h2 className="text-2xl font-semibold text-stone-900">Pick your tickets</h2>
+        <p className="text-sm text-stone-600">
+          Tickets are $85 each. Adjust the quantity and we’ll hand you off to Stripe to finish the purchase.
+        </p>
+      </header>
 
-      <div className="flex flex-col gap-4 md:flex-row md:items-center">
-        <div className="flex items-center gap-3 rounded-2xl bg-slate-100 p-2 shadow-inner">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-stone-50 p-2">
           <button
             type="button"
             onClick={() => adjustQuantity(-1)}
             disabled={loading || qty <= 1}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-white text-xl font-semibold text-slate-600 transition hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-white text-xl font-semibold text-stone-600 transition hover:text-stone-900 disabled:cursor-not-allowed disabled:opacity-40"
           >
             −
           </button>
-          <div className="flex h-11 min-w-[3.5rem] items-center justify-center rounded-xl bg-white px-4 text-lg font-semibold text-slate-900 shadow">
+          <div className="flex h-11 min-w-[3.5rem] items-center justify-center rounded-xl bg-white px-4 text-lg font-semibold text-stone-900 shadow-inner">
             {qty}
           </div>
           <button
             type="button"
             onClick={() => adjustQuantity(1)}
             disabled={loading}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-white text-xl font-semibold text-slate-600 transition hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-white text-xl font-semibold text-stone-600 transition hover:text-stone-900 disabled:cursor-not-allowed disabled:opacity-40"
           >
             +
           </button>
         </div>
-        <button
-          type="button"
-          onClick={handleCheckout}
-          disabled={loading}
-          className="inline-flex w-full items-center justify-center rounded-2xl bg-rose-500 px-6 py-3 text-lg font-semibold text-white shadow-lg shadow-rose-200 transition hover:bg-rose-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-70 md:w-auto"
-        >
-          {loading ? "Starting checkout..." : `Purchase ${qty} Ticket${qty === 1 ? "" : "s"}`}
-        </button>
+
+        <div className="flex flex-col items-start gap-1 text-left sm:items-end">
+          <span className="text-xs uppercase tracking-[0.24em] text-stone-500">Total</span>
+          <span className="text-2xl font-semibold text-amber-700">{totalLabel}</span>
+        </div>
       </div>
 
-      <div className="grid gap-3 text-sm text-slate-600 md:grid-cols-3">
-        <div className="rounded-2xl bg-amber-50/80 p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-400">Premium seats</p>
-          <p className="mt-1 text-slate-700">Choose the quantity that fits your crew—no extra steps required.</p>
-        </div>
-        <div className="rounded-2xl bg-sky-50/80 p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-400">Secure checkout</p>
-          <p className="mt-1 text-slate-700">Stripe handles the payment so your details stay protected end to end.</p>
-        </div>
-        <div className="rounded-2xl bg-emerald-50/80 p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-400">Instant delivery</p>
-          <p className="mt-1 text-slate-700">Tickets arrive in your inbox immediately after your purchase is complete.</p>
-        </div>
+      <button
+        type="button"
+        onClick={handleCheckout}
+        disabled={loading}
+        className="inline-flex w-full items-center justify-center rounded-2xl bg-amber-600 px-6 py-3 text-lg font-semibold text-white shadow-sm transition hover:bg-amber-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-70"
+      >
+        {loading ? "Starting checkout..." : `Purchase ${qty} Ticket${qty === 1 ? "" : "s"}`}
+      </button>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        {["Chute-side action", "Secure payment", "Instant delivery"].map((headline, index) => (
+          <div key={headline} className="rounded-2xl border border-stone-200 bg-stone-50 p-4 text-sm text-stone-600">
+            <p className="font-semibold text-stone-800">{headline}</p>
+            <p className="mt-1 text-xs text-stone-500">
+              {[
+                "Feel the dust fly with premier seating for every ride.",
+                "Stripe keeps your payment safe from start to finish.",
+                "Check your inbox moments after payment for your tickets.",
+              ][index]}
+            </p>
+          </div>
+        ))}
       </div>
 
       {feedback ? (
@@ -138,17 +140,102 @@ function TicketPurchasePanel({ priceId }: { priceId: string }) {
           className={`rounded-2xl border px-4 py-3 text-sm ${
             feedback.tone === "error"
               ? "border-rose-200 bg-rose-50 text-rose-600"
-              : "border-sky-200 bg-sky-50 text-sky-700"
+              : "border-amber-200 bg-amber-50 text-amber-700"
           }`}
         >
           {feedback.message}
         </div>
       ) : (
-        <p className="text-sm text-slate-500">
-          Need a hand? Our support team is standing by at the arena to help you with anything.
-        </p>
+        <p className="text-sm text-stone-500">Need a hand? Find our crew at the front gate for quick help.</p>
       )}
-    </div>
+    </section>
+  );
+}
+
+function PurchaseHistory() {
+  const purchases = useQuery(api.purchases.listSuccessfulForCurrentUser, {});
+
+  const dateFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat("en-US", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }),
+    [],
+  );
+
+  const renderBody = () => {
+    if (purchases === undefined) {
+      return (
+        <tr>
+          <td colSpan={4} className="px-4 py-6 text-center text-sm text-stone-500">
+            Loading purchase history...
+          </td>
+        </tr>
+      );
+    }
+
+    if (purchases.length === 0) {
+      return (
+        <tr>
+          <td colSpan={4} className="px-4 py-6 text-center text-sm text-stone-500">
+            No completed purchases yet. Your receipts will land here after checkout.
+          </td>
+        </tr>
+      );
+    }
+
+    return purchases.map((purchase) => {
+      const amount = new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: purchase.currency.toUpperCase(),
+      }).format(purchase.amountTotal / 100);
+
+      const issuedAt = dateFormatter.format(new Date(purchase.createdAt));
+
+      return (
+        <tr key={purchase.stripeSessionId} className="border-t border-stone-200">
+          <td className="px-4 py-3 text-sm font-medium text-stone-800">{issuedAt}</td>
+          <td className="px-4 py-3 text-sm text-stone-600">{purchase.eventId}</td>
+          <td className="px-4 py-3 text-sm text-stone-600">{purchase.ticketId ?? "Ticket pending"}</td>
+          <td className="px-4 py-3 text-sm font-semibold text-amber-700">{amount}</td>
+        </tr>
+      );
+    });
+  };
+
+  return (
+    <section className="space-y-4 rounded-3xl border border-stone-200 bg-white p-6 shadow-sm">
+      <header className="space-y-1">
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-600">Your receipts</p>
+        <h2 className="text-xl font-semibold text-stone-900">Past successful purchases</h2>
+        <p className="text-sm text-stone-600">
+          Track every paid checkout in one place. We keep the last 20 receipts handy for quick reference.
+        </p>
+      </header>
+
+      <div className="overflow-hidden rounded-2xl border border-stone-200">
+        <table className="min-w-full divide-y divide-stone-200 text-left">
+          <thead className="bg-stone-50 text-xs uppercase tracking-[0.2em] text-stone-500">
+            <tr>
+              <th scope="col" className="px-4 py-3 font-medium">
+                Purchased
+              </th>
+              <th scope="col" className="px-4 py-3 font-medium">
+                Event
+              </th>
+              <th scope="col" className="px-4 py-3 font-medium">
+                Ticket
+              </th>
+              <th scope="col" className="px-4 py-3 font-medium">
+                Amount
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white">{renderBody()}</tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 
@@ -157,72 +244,58 @@ export default function BuyPage() {
   const welcomeName = user?.firstName || user?.fullName || user?.primaryEmailAddress?.emailAddress || "friend";
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-white via-rose-50 to-amber-50">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-16 px-6 pb-24 pt-20">
+    <main className="min-h-screen bg-gradient-to-b from-stone-50 via-amber-50/40 to-white text-stone-900">
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-16 px-6 pb-24 pt-16">
         <Unauthorized>
-          <section className="grid gap-12 rounded-3xl bg-white/90 p-10 shadow-2xl shadow-rose-100 ring-1 ring-rose-100 backdrop-blur-lg lg:grid-cols-[1.1fr_0.9fr]">
-            <div className="space-y-6">
-              <span className="inline-flex items-center rounded-full bg-rose-100 px-4 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-rose-500">
-                Live at the Canyon Arena
-              </span>
-              <h1 className="text-4xl font-semibold leading-tight text-slate-900 sm:text-5xl">
-                Saddle up for a night of broncos, barrels, and big air.
+          <section className="space-y-8">
+            <div className="space-y-6 rounded-3xl border border-stone-200 bg-white p-10 text-center shadow-lg shadow-amber-100/50">
+              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-amber-600">Canyon Classic Rodeo</p>
+              <h1 className="text-4xl font-semibold leading-tight text-stone-900 sm:text-5xl">
+                Saddle up for a dust-kicking night under the arena lights.
               </h1>
-              <p className="text-lg text-slate-600">
-                Experience the electrifying energy of the Rodeo Classic with VIP-worthy production, local flavors, and nonstop thrills. Secure your tickets in just a couple of clicks.
+              <p className="text-lg text-stone-600">
+                From bronc busting to barrel racing, the Canyon Classic delivers the best show in the valley. Sign in to grab
+                your seats before the gates open.
               </p>
-              <div className="flex flex-wrap gap-4">
+              <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
                 <SignInButton mode="modal">
-                  <button className="inline-flex items-center justify-center rounded-2xl bg-rose-500 px-6 py-3 text-lg font-semibold text-white shadow-lg shadow-rose-200 transition hover:bg-rose-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white">
+                  <button className="inline-flex items-center justify-center rounded-2xl bg-amber-600 px-6 py-3 text-lg font-semibold text-white shadow-sm transition hover:bg-amber-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white">
                     Purchase your tickets
                   </button>
                 </SignInButton>
-                <div className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-medium text-slate-600 shadow">
-                  <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-                  <span>No account? Create one during sign-in.</span>
-                </div>
-              </div>
-              <dl className="grid gap-4 text-sm text-slate-600 sm:grid-cols-3">
-                <div className="rounded-2xl bg-slate-100/80 p-4">
-                  <dt className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Dates</dt>
-                  <dd className="mt-1 text-base font-semibold text-slate-900">July 18 – 20</dd>
-                </div>
-                <div className="rounded-2xl bg-slate-100/80 p-4">
-                  <dt className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Location</dt>
-                  <dd className="mt-1 text-base font-semibold text-slate-900">Canyon County Fairgrounds</dd>
-                </div>
-                <div className="rounded-2xl bg-slate-100/80 p-4">
-                  <dt className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Highlights</dt>
-                  <dd className="mt-1 text-base font-semibold text-slate-900">Pro riders, live music, food trucks</dd>
-                </div>
-              </dl>
-            </div>
-            <div className="relative hidden overflow-hidden rounded-3xl bg-gradient-to-br from-amber-200 via-white to-rose-200 lg:block">
-              <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=900&q=80')] bg-cover bg-center opacity-80" />
-              <div className="absolute inset-0 bg-gradient-to-br from-rose-100/70 via-white/60 to-amber-200/70" />
-              <div className="relative z-10 flex h-full flex-col justify-end p-10 text-slate-800">
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-600">What to expect</p>
-                <p className="mt-3 text-2xl font-semibold leading-snug text-slate-900">
-                  Heart-pounding rides, championship stakes, and the best night out west of the Rockies.
-                </p>
+                <span className="text-sm text-stone-500">No account yet? You can create one during sign-in.</span>
               </div>
             </div>
+            <dl className="grid gap-4 sm:grid-cols-3">
+              {[
+                { label: "Dates", value: "July 18 – 20" },
+                { label: "Location", value: "Canyon County Fairgrounds" },
+                { label: "Highlights", value: "Pro riders · Live music · Local eats" },
+              ].map((item) => (
+                <div key={item.label} className="space-y-2 rounded-3xl border border-amber-100 bg-white/70 p-5 text-center">
+                  <dt className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-600">{item.label}</dt>
+                  <dd className="text-base font-semibold text-stone-800">{item.value}</dd>
+                </div>
+              ))}
+            </dl>
           </section>
         </Unauthorized>
 
         <Authorized>
           <section className="space-y-10">
-            <header className="space-y-4 text-center">
-              <span className="inline-flex items-center rounded-full bg-emerald-100 px-4 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-emerald-500">
-                Welcome back
-              </span>
-              <h1 className="text-4xl font-semibold text-slate-900 sm:text-5xl">Ready to ride, {welcomeName}?</h1>
-              <p className="mx-auto max-w-2xl text-lg text-slate-600">
-                You&apos;re just a click away from locking in your seats to the Rodeo Classic. Review your ticket count below and we&apos;ll handle the rest through Stripe&apos;s secure checkout.
+            <header className="space-y-3 text-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-emerald-600">Welcome back</p>
+              <h1 className="text-4xl font-semibold text-stone-900 sm:text-5xl">Ready to ride, {welcomeName}?</h1>
+              <p className="mx-auto max-w-2xl text-lg text-stone-600">
+                Choose how many tickets you need, head through checkout, and we’ll have your confirmation waiting below the moment
+                Stripe marks it paid.
               </p>
             </header>
 
-            <TicketPurchasePanel priceId={PRICE_ID} />
+            <div className="space-y-8">
+              <TicketPurchasePanel priceId={PRICE_ID} />
+              <PurchaseHistory />
+            </div>
           </section>
         </Authorized>
       </div>
