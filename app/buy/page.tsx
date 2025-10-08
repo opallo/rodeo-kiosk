@@ -5,8 +5,9 @@ import { Authenticated, Unauthenticated, useQuery } from "convex/react";
 import { SignInButton, useUser } from "@clerk/nextjs";
 
 import { api } from "@/convex/_generated/api";
+import { PRICE_CATALOG } from "@/lib/pricing";
 
-const PRICE_ID = "price_1SCow4LGtZ8BdkwqLaowXCyE";
+const PRICE_ID = PRICE_CATALOG.generalAdmission.priceId;
 
 function Authorized({ children }: { children: ReactNode }) {
   return <Authenticated>{children}</Authenticated>;

@@ -5,6 +5,7 @@ import { Authenticated, Unauthenticated, useMutation, useQuery } from "convex/re
 import { SignInButton, UserButton, useUser } from "@clerk/nextjs"; // added useUser for clerk debug test
 import { api } from "@/convex/_generated/api"; // added convex api for debug query
 import BuyTicketButton, { BuyTicketButtonDebugEntry } from "@/components/BuyTicketButton";
+import { PRICE_CATALOG } from "@/lib/pricing";
 import TicketValidateWidget from "@/components/TicketValidateWidget";
 import TicketRedeemWidget from "@/components/TicketRedeemWidget";
 
@@ -172,7 +173,10 @@ export default function Home() {
               <p className="text-[11px] uppercase tracking-[0.28em] text-neutral-500">Checkout sandbox</p>
               <p className="text-sm text-neutral-400">Launch test checkout and capture debug events.</p>
             </div>
-            <BuyTicketButton priceId="price_1SCow4LGtZ8BdkwqLaowXCyE" onDebug={handleStripeDebug} />
+            <BuyTicketButton
+              priceId={PRICE_CATALOG.generalAdmission.priceId}
+              onDebug={handleStripeDebug}
+            />
           </div>
 
           <div className="flex flex-col gap-4 bg-neutral-950/70 p-6">
